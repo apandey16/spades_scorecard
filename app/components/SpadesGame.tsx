@@ -74,6 +74,14 @@ For example, if the team's bid is Seven and they make seven tricks, the score wo
 
 If the team "breaks contract," that is, if they take fewer than the number of tricks bid, they lose the amount that was bid. For example, if a player bids Four and wins only three tricks, -40 points are awarded.`;
 
+// Add this type before the component
+type HistoryEditField = 
+  | keyof Round 
+  | 'team1_1_bid' | 'team1_1_isNello' | 'team1_1_nelloSuccess'
+  | 'team1_2_bid' | 'team1_2_isNello' | 'team1_2_nelloSuccess'
+  | 'team2_1_bid' | 'team2_1_isNello' | 'team2_1_nelloSuccess'
+  | 'team2_2_bid' | 'team2_2_isNello' | 'team2_2_nelloSuccess';
+
 export default function SpadesGame() {
   const [team1Score, setTeam1Score] = useState<TeamScore>({ 
     score: 0, 
@@ -97,64 +105,52 @@ export default function SpadesGame() {
   const [isShortGame, setIsShortGame] = useState(false);
   const [isHydrated, setIsHydrated] = useState(false);
   const [showRules, setShowRules] = useState(false);
+  const [editingHistoryIndex, setEditingHistoryIndex] = useState<number | null>(null);
+  const [editingRound, setEditingRound] = useState<Round | null>(null);
 
-  // Handle hydration and localStorage
+  // Handle hydration and localStorage in a single useEffect
   useEffect(() => {
-    const savedTeam1Score = localStorage.getItem('team1Score');
-    const savedTeam2Score = localStorage.getItem('team2Score');
-    const savedCurrentRound = localStorage.getItem('currentRound');
-    const savedHistory = localStorage.getItem('history');
-    const savedIsEditing = localStorage.getItem('isEditing');
-    const savedIsShortGame = localStorage.getItem('isShortGame');
+    const loadFromLocalStorage = () => {
+      try {
+        const savedTeam1Score = localStorage.getItem('team1Score');
+        const savedTeam2Score = localStorage.getItem('team2Score');
+        const savedCurrentRound = localStorage.getItem('currentRound');
+        const savedHistory = localStorage.getItem('history');
+        const savedIsEditing = localStorage.getItem('isEditing');
+        const savedIsShortGame = localStorage.getItem('isShortGame');
 
-    if (savedTeam1Score) setTeam1Score(JSON.parse(savedTeam1Score));
-    if (savedTeam2Score) setTeam2Score(JSON.parse(savedTeam2Score));
-    if (savedCurrentRound) setCurrentRound(JSON.parse(savedCurrentRound));
-    if (savedHistory) setHistory(JSON.parse(savedHistory));
-    if (savedIsEditing) setIsEditing(JSON.parse(savedIsEditing));
-    if (savedIsShortGame) setIsShortGame(JSON.parse(savedIsShortGame));
-    
-    setIsHydrated(true);
+        if (savedTeam1Score) setTeam1Score(JSON.parse(savedTeam1Score));
+        if (savedTeam2Score) setTeam2Score(JSON.parse(savedTeam2Score));
+        if (savedCurrentRound) setCurrentRound(JSON.parse(savedCurrentRound));
+        if (savedHistory) setHistory(JSON.parse(savedHistory));
+        if (savedIsEditing) setIsEditing(JSON.parse(savedIsEditing));
+        if (savedIsShortGame) setIsShortGame(JSON.parse(savedIsShortGame));
+      } catch (error) {
+        console.error('Error loading from localStorage:', error);
+      }
+      setIsHydrated(true);
+    };
+
+    loadFromLocalStorage();
   }, []);
 
-  // Save state to localStorage whenever it changes
+  // Save to localStorage only after hydration
   useEffect(() => {
     if (!isHydrated) return;
     
-    localStorage.setItem('team1Score', JSON.stringify(team1Score));
-  }, [team1Score, isHydrated]);
+    try {
+      localStorage.setItem('team1Score', JSON.stringify(team1Score));
+      localStorage.setItem('team2Score', JSON.stringify(team2Score));
+      localStorage.setItem('currentRound', JSON.stringify(currentRound));
+      localStorage.setItem('history', JSON.stringify(history));
+      localStorage.setItem('isEditing', JSON.stringify(isEditing));
+      localStorage.setItem('isShortGame', JSON.stringify(isShortGame));
+    } catch (error) {
+      console.error('Error saving to localStorage:', error);
+    }
+  }, [team1Score, team2Score, currentRound, history, isEditing, isShortGame, isHydrated]);
 
-  useEffect(() => {
-    if (!isHydrated) return;
-    
-    localStorage.setItem('team2Score', JSON.stringify(team2Score));
-  }, [team2Score, isHydrated]);
-
-  useEffect(() => {
-    if (!isHydrated) return;
-    
-    localStorage.setItem('currentRound', JSON.stringify(currentRound));
-  }, [currentRound, isHydrated]);
-
-  useEffect(() => {
-    if (!isHydrated) return;
-    
-    localStorage.setItem('history', JSON.stringify(history));
-  }, [history, isHydrated]);
-
-  useEffect(() => {
-    if (!isHydrated) return;
-    
-    localStorage.setItem('isEditing', JSON.stringify(isEditing));
-  }, [isEditing, isHydrated]);
-
-  useEffect(() => {
-    if (!isHydrated) return;
-    
-    localStorage.setItem('isShortGame', JSON.stringify(isShortGame));
-  }, [isShortGame, isHydrated]);
-
-  // Don't render until after hydration to prevent mismatch
+  // Don't render until after hydration
   if (!isHydrated) {
     return null;
   }
@@ -535,6 +531,118 @@ export default function SpadesGame() {
     }
   };
 
+  const handleHistoryEdit = (index: number, field: HistoryEditField, value: any) => {
+    if (editingRound === null) return;
+    
+    setEditingRound(prev => {
+      if (!prev) return prev;
+      
+      if (field.includes('_')) {
+        // Handle player bid and nello updates
+        const [team, player, subField] = field.split('_');
+        const playerKey = `${team}Player${player}` as keyof Round;
+        
+        if (subField === 'bid') {
+          const numValue = Math.max(0, Math.min(13, parseInt(value) || 0));
+          return {
+            ...prev,
+            [playerKey]: {
+              ...(prev[playerKey] as Player),
+              bid: numValue
+            }
+          };
+        } else if (subField === 'isNello') {
+          const boolValue = Boolean(value);
+          return {
+            ...prev,
+            [playerKey]: {
+              ...(prev[playerKey] as Player),
+              isNello: boolValue,
+              bid: boolValue ? 0 : (prev[playerKey] as Player).bid // Reset bid to 0 if Nello is checked
+            }
+          };
+        } else if (subField === 'nelloSuccess') {
+          return {
+            ...prev,
+            [playerKey]: {
+              ...(prev[playerKey] as Player),
+              nelloSuccess: value === "true"
+            }
+          };
+        }
+      } else {
+        // Handle tricks updates
+        const numValue = Math.max(0, Math.min(13, parseInt(value) || 0));
+        return {
+          ...prev,
+          [field]: numValue
+        };
+      }
+      
+      return prev;
+    });
+  };
+
+  const startHistoryEdit = (index: number) => {
+    setEditingHistoryIndex(index);
+    setEditingRound({...history[index]});
+  };
+
+  const cancelHistoryEdit = () => {
+    setEditingHistoryIndex(null);
+    setEditingRound(null);
+  };
+
+  const saveHistoryEdit = async () => {
+    if (editingHistoryIndex === null || !editingRound) return;
+
+    // Validate total tricks
+    const totalTricks = editingRound.team1Tricks + editingRound.team2Tricks;
+    if (totalTricks !== 13) {
+      alert("Total tricks must equal 13!");
+      return;
+    }
+
+    // Calculate new scores from the beginning up to this point
+    let newTeam1Score = { ...team1Score, score: 0, bags: 0 };
+    let newTeam2Score = { ...team2Score, score: 0, bags: 0 };
+
+    // Recalculate all scores up to the current point
+    for (let i = 0; i <= editingHistoryIndex; i++) {
+      const round = i === editingHistoryIndex ? editingRound : history[i];
+      
+      newTeam1Score = calculateTeamScore(
+        [round.team1Player1, round.team1Player2],
+        round.team1Tricks,
+        newTeam1Score
+      );
+      
+      newTeam2Score = calculateTeamScore(
+        [round.team2Player1, round.team2Player2],
+        round.team2Tricks,
+        newTeam2Score
+      );
+    }
+
+    const confirmMessage = `This will update the scores to:\n\n${team1Score.name}: ${newTeam1Score.score} (${newTeam1Score.bags} bags)\n${team2Score.name}: ${newTeam2Score.score} (${newTeam2Score.bags} bags)\n\nAre you sure you want to make this change?`;
+
+    if (window.confirm(confirmMessage)) {
+      const newHistory = [...history];
+      newHistory[editingHistoryIndex] = editingRound;
+      
+      setHistory(newHistory);
+      setTeam1Score(newTeam1Score);
+      setTeam2Score(newTeam2Score);
+      setEditingHistoryIndex(null);
+      setEditingRound(null);
+
+      // Save to localStorage
+      localStorage.setItem('history', JSON.stringify(newHistory));
+      localStorage.setItem('team1Score', JSON.stringify(newTeam1Score));
+      localStorage.setItem('team2Score', JSON.stringify(newTeam2Score));
+    }
+  };
+
   return (
     <>
       <div className="w-full max-w-6xl mx-auto p-2 sm:p-4">
@@ -709,38 +817,219 @@ export default function SpadesGame() {
                       <th className="p-2 text-xs sm:text-sm">{team2Score.player2Name}</th>
                       <th className="p-2 text-xs sm:text-sm">{team2Score.name} Tricks</th>
                       <th className="p-2 text-xs sm:text-sm">{team2Score.name} Bags</th>
+                      <th className="p-2 text-xs sm:text-sm">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {history.map((round, index) => (
-                      <tr key={index} className="border-b dark:border-gray-700 whitespace-nowrap hover:bg-gray-50 dark:hover:bg-gray-800">
-                        <td className="p-2 text-center text-xs sm:text-sm">{index + 1}</td>
-                        <td className="p-2 text-center text-xs sm:text-sm">
-                          {round.team1Player1.isNello 
-                            ? `Nil ${round.team1Player1.nelloSuccess ? '♠' : '×'}` 
-                            : round.team1Player1.bid}
-                        </td>
-                        <td className="p-2 text-center text-xs sm:text-sm">
-                          {round.team1Player2.isNello 
-                            ? `Nil ${round.team1Player2.nelloSuccess ? '♠' : '×'}` 
-                            : round.team1Player2.bid}
-                        </td>
-                        <td className="p-2 text-center text-xs sm:text-sm">{round.team1Tricks}</td>
-                        <td className="p-2 text-center text-xs sm:text-sm">{round.team1Bags}</td>
-                        <td className="p-2 text-center text-xs sm:text-sm">
-                          {round.team2Player1.isNello 
-                            ? `Nil ${round.team2Player1.nelloSuccess ? '♠' : '×'}` 
-                            : round.team2Player1.bid}
-                        </td>
-                        <td className="p-2 text-center text-xs sm:text-sm">
-                          {round.team2Player2.isNello 
-                            ? `Nil ${round.team2Player2.nelloSuccess ? '♠' : '×'}` 
-                            : round.team2Player2.bid}
-                        </td>
-                        <td className="p-2 text-center text-xs sm:text-sm">{round.team2Tricks}</td>
-                        <td className="p-2 text-center text-xs sm:text-sm">{round.team2Bags}</td>
-                      </tr>
-                    ))}
+                    {history.map((round, index) => {
+                      const isEditing = editingHistoryIndex === index;
+                      const currentRound = isEditing ? editingRound! : round;
+                      
+                      return (
+                        <tr key={index} className="border-b dark:border-gray-700 whitespace-nowrap hover:bg-gray-50 dark:hover:bg-gray-800">
+                          <td className="p-2 text-center text-xs sm:text-sm">{index + 1}</td>
+                          <td className="p-2 text-center text-xs sm:text-sm">
+                            {isEditing ? (
+                              <div className="flex flex-col gap-1">
+                                <input
+                                  type="number"
+                                  min="0"
+                                  max="13"
+                                  value={currentRound.team1Player1.bid}
+                                  onChange={(e) => handleHistoryEdit(index, 'team1_1_bid', e.target.value)}
+                                  disabled={currentRound.team1Player1.isNello}
+                                  className="w-16 text-center p-1 rounded border"
+                                />
+                                <label className="flex items-center justify-center gap-1">
+                                  <input
+                                    type="checkbox"
+                                    checked={currentRound.team1Player1.isNello}
+                                    onChange={(e) => handleHistoryEdit(index, 'team1_1_isNello', e.target.checked)}
+                                  />
+                                  <span className="text-xs">Nil</span>
+                                </label>
+                                {currentRound.team1Player1.isNello && (
+                                  <select
+                                    value={currentRound.team1Player1.nelloSuccess ? "true" : "false"}
+                                    onChange={(e) => handleHistoryEdit(index, 'team1_1_nelloSuccess', e.target.value === "true")}
+                                    className="w-16 text-center p-1 rounded border text-xs"
+                                  >
+                                    <option value="true">✓</option>
+                                    <option value="false">✗</option>
+                                  </select>
+                                )}
+                              </div>
+                            ) : (
+                              currentRound.team1Player1.isNello 
+                                ? `Nil ${currentRound.team1Player1.nelloSuccess ? '♠' : '×'}` 
+                                : currentRound.team1Player1.bid
+                            )}
+                          </td>
+                          <td className="p-2 text-center text-xs sm:text-sm">
+                            {isEditing ? (
+                              <div className="flex flex-col gap-1">
+                                <input
+                                  type="number"
+                                  min="0"
+                                  max="13"
+                                  value={currentRound.team1Player2.bid}
+                                  onChange={(e) => handleHistoryEdit(index, 'team1_2_bid', e.target.value)}
+                                  disabled={currentRound.team1Player2.isNello}
+                                  className="w-16 text-center p-1 rounded border"
+                                />
+                                <label className="flex items-center justify-center gap-1">
+                                  <input
+                                    type="checkbox"
+                                    checked={currentRound.team1Player2.isNello}
+                                    onChange={(e) => handleHistoryEdit(index, 'team1_2_isNello', e.target.checked)}
+                                  />
+                                  <span className="text-xs">Nil</span>
+                                </label>
+                                {currentRound.team1Player2.isNello && (
+                                  <select
+                                    value={currentRound.team1Player2.nelloSuccess ? "true" : "false"}
+                                    onChange={(e) => handleHistoryEdit(index, 'team1_2_nelloSuccess', e.target.value === "true")}
+                                    className="w-16 text-center p-1 rounded border text-xs"
+                                  >
+                                    <option value="true">✓</option>
+                                    <option value="false">✗</option>
+                                  </select>
+                                )}
+                              </div>
+                            ) : (
+                              currentRound.team1Player2.isNello 
+                                ? `Nil ${currentRound.team1Player2.nelloSuccess ? '♠' : '×'}` 
+                                : currentRound.team1Player2.bid
+                            )}
+                          </td>
+                          <td className="p-2 text-center text-xs sm:text-sm">
+                            {isEditing ? (
+                              <input
+                                type="number"
+                                min="0"
+                                max="13"
+                                value={currentRound.team1Tricks}
+                                onChange={(e) => handleHistoryEdit(index, 'team1Tricks', e.target.value)}
+                                className="w-16 text-center p-1 rounded border"
+                              />
+                            ) : currentRound.team1Tricks}
+                          </td>
+                          <td className="p-2 text-center text-xs sm:text-sm">{currentRound.team1Bags}</td>
+                          <td className="p-2 text-center text-xs sm:text-sm">
+                            {isEditing ? (
+                              <div className="flex flex-col gap-1">
+                                <input
+                                  type="number"
+                                  min="0"
+                                  max="13"
+                                  value={currentRound.team2Player1.bid}
+                                  onChange={(e) => handleHistoryEdit(index, 'team2_1_bid', e.target.value)}
+                                  disabled={currentRound.team2Player1.isNello}
+                                  className="w-16 text-center p-1 rounded border"
+                                />
+                                <label className="flex items-center justify-center gap-1">
+                                  <input
+                                    type="checkbox"
+                                    checked={currentRound.team2Player1.isNello}
+                                    onChange={(e) => handleHistoryEdit(index, 'team2_1_isNello', e.target.checked)}
+                                  />
+                                  <span className="text-xs">Nil</span>
+                                </label>
+                                {currentRound.team2Player1.isNello && (
+                                  <select
+                                    value={currentRound.team2Player1.nelloSuccess ? "true" : "false"}
+                                    onChange={(e) => handleHistoryEdit(index, 'team2_1_nelloSuccess', e.target.value === "true")}
+                                    className="w-16 text-center p-1 rounded border text-xs"
+                                  >
+                                    <option value="true">✓</option>
+                                    <option value="false">✗</option>
+                                  </select>
+                                )}
+                              </div>
+                            ) : (
+                              currentRound.team2Player1.isNello 
+                                ? `Nil ${currentRound.team2Player1.nelloSuccess ? '♠' : '×'}` 
+                                : currentRound.team2Player1.bid
+                            )}
+                          </td>
+                          <td className="p-2 text-center text-xs sm:text-sm">
+                            {isEditing ? (
+                              <div className="flex flex-col gap-1">
+                                <input
+                                  type="number"
+                                  min="0"
+                                  max="13"
+                                  value={currentRound.team2Player2.bid}
+                                  onChange={(e) => handleHistoryEdit(index, 'team2_2_bid', e.target.value)}
+                                  disabled={currentRound.team2Player2.isNello}
+                                  className="w-16 text-center p-1 rounded border"
+                                />
+                                <label className="flex items-center justify-center gap-1">
+                                  <input
+                                    type="checkbox"
+                                    checked={currentRound.team2Player2.isNello}
+                                    onChange={(e) => handleHistoryEdit(index, 'team2_2_isNello', e.target.checked)}
+                                  />
+                                  <span className="text-xs">Nil</span>
+                                </label>
+                                {currentRound.team2Player2.isNello && (
+                                  <select
+                                    value={currentRound.team2Player2.nelloSuccess ? "true" : "false"}
+                                    onChange={(e) => handleHistoryEdit(index, 'team2_2_nelloSuccess', e.target.value === "true")}
+                                    className="w-16 text-center p-1 rounded border text-xs"
+                                  >
+                                    <option value="true">✓</option>
+                                    <option value="false">✗</option>
+                                  </select>
+                                )}
+                              </div>
+                            ) : (
+                              currentRound.team2Player2.isNello 
+                                ? `Nil ${currentRound.team2Player2.nelloSuccess ? '♠' : '×'}` 
+                                : currentRound.team2Player2.bid
+                            )}
+                          </td>
+                          <td className="p-2 text-center text-xs sm:text-sm">
+                            {isEditing ? (
+                              <input
+                                type="number"
+                                min="0"
+                                max="13"
+                                value={currentRound.team2Tricks}
+                                onChange={(e) => handleHistoryEdit(index, 'team2Tricks', e.target.value)}
+                                className="w-16 text-center p-1 rounded border"
+                              />
+                            ) : currentRound.team2Tricks}
+                          </td>
+                          <td className="p-2 text-center text-xs sm:text-sm">{currentRound.team2Bags}</td>
+                          <td className="p-2 text-center text-xs sm:text-sm">
+                            {isEditing ? (
+                              <div className="flex gap-2 justify-center">
+                                <button
+                                  onClick={saveHistoryEdit}
+                                  className="button-card bg-green-500 text-white px-2 py-1"
+                                >
+                                  Save
+                                </button>
+                                <button
+                                  onClick={cancelHistoryEdit}
+                                  className="button-card bg-red-500 text-white px-2 py-1"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            ) : (
+                              <button
+                                onClick={() => startHistoryEdit(index)}
+                                className="button-card bg-blue-500 text-white px-2 py-1"
+                              >
+                                Edit
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -753,15 +1042,11 @@ export default function SpadesGame() {
       <div className="fixed bottom-4 left-4 z-[9999]">
         <button
           onClick={() => setShowRules(true)}
-          className="button-card bg-blue-500 text-white rounded-full w-14 h-14 sm:w-12 sm:h-12 flex items-center justify-center shadow-lg p-2 sm:p-1.5"
+          className="button-card bg-gradient-to-br from-gray-900 to-black text-white rounded-full w-14 h-14 sm:w-12 sm:h-12 flex items-center justify-center shadow-lg hover:scale-110 transition-all duration-300 border-2 border-gray-700"
           title="Game Rules"
           aria-label="Show Game Rules"
         >
-          <img 
-            src="/assets/rule.png" 
-            alt="Rules"
-            className="w-full h-full object-contain"
-          />
+          <span className="text-3xl sm:text-2xl">♠</span>
         </button>
       </div>
 
