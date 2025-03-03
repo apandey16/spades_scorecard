@@ -447,7 +447,7 @@ export default function SpadesGame() {
             max="13"
             value={playerData.bid}
             onChange={(e) => handleInputChange(e, team, player, 'bid')}
-            disabled={playerData.isNello}
+            disabled={playerData.isNello || isEditing}
             className="w-full mt-1 p-2 rounded border dark:bg-gray-600"
           />
         </label>
@@ -456,6 +456,7 @@ export default function SpadesGame() {
             type="checkbox"
             checked={playerData.isNello}
             onChange={(e) => handleInputChange(e, team, player, 'isNello')}
+            disabled={isEditing}
             className="mr-2"
           />
           Nello
@@ -657,6 +658,7 @@ export default function SpadesGame() {
                     checked={isShortGame}
                     onChange={(e) => setIsShortGame(e.target.checked)}
                     className="sr-only peer"
+                    disabled={isEditing}
                   />
                   <div className="w-14 h-7 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:start-[4px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
                   <span className="ms-3 text-sm font-medium whitespace-nowrap">
@@ -671,19 +673,21 @@ export default function SpadesGame() {
             <div className="flex flex-wrap justify-center sm:justify-end gap-2 sm:gap-4 w-full sm:w-auto">
               <button
                 onClick={() => setIsEditing(!isEditing)}
-                className="button-card"
+                className={`button-card ${isEditing ? 'bg-green-500 text-white' : ''}`}
               >
                 {isEditing ? "Save Names" : "Edit Names"}
               </button>
               <button
                 onClick={resetGame}
                 className="button-card bg-yellow-500 text-white"
+                disabled={isEditing}
               >
                 Reset Game
               </button>
               <button
                 onClick={resetEverything}
                 className="button-card bg-red-500 text-white"
+                disabled={isEditing}
               >
                 Reset All
               </button>
@@ -783,12 +787,13 @@ export default function SpadesGame() {
             finalizeRound
           }
           disabled={
+            isEditing ||
             (currentRound.tricksComplete && !allNelloResultsSubmitted()) ||
             (!currentRound.tricksComplete && currentRound.biddingComplete && 
              currentRound.team1Tricks + currentRound.team2Tricks !== 13)
           }
           className={`button-card w-full mt-6 ${
-            (currentRound.tricksComplete && !allNelloResultsSubmitted()) ||
+            isEditing || (currentRound.tricksComplete && !allNelloResultsSubmitted()) ||
             (!currentRound.tricksComplete && currentRound.biddingComplete && 
              currentRound.team1Tricks + currentRound.team2Tricks !== 13)
               ? 'bg-gray-400 text-white'
@@ -837,7 +842,7 @@ export default function SpadesGame() {
                                   max="13"
                                   value={currentRound.team1Player1.bid}
                                   onChange={(e) => handleHistoryEdit(index, 'team1_1_bid', e.target.value)}
-                                  disabled={currentRound.team1Player1.isNello}
+                                  disabled={currentRound.team1Player1.isNello || isEditing}
                                   className="w-16 text-center p-1 rounded border"
                                 />
                                 <label className="flex items-center justify-center gap-1">
@@ -845,6 +850,7 @@ export default function SpadesGame() {
                                     type="checkbox"
                                     checked={currentRound.team1Player1.isNello}
                                     onChange={(e) => handleHistoryEdit(index, 'team1_1_isNello', e.target.checked)}
+                                    disabled={isEditing}
                                   />
                                   <span className="text-xs">Nil</span>
                                 </label>
@@ -874,7 +880,7 @@ export default function SpadesGame() {
                                   max="13"
                                   value={currentRound.team1Player2.bid}
                                   onChange={(e) => handleHistoryEdit(index, 'team1_2_bid', e.target.value)}
-                                  disabled={currentRound.team1Player2.isNello}
+                                  disabled={currentRound.team1Player2.isNello || isEditing}
                                   className="w-16 text-center p-1 rounded border"
                                 />
                                 <label className="flex items-center justify-center gap-1">
@@ -882,6 +888,7 @@ export default function SpadesGame() {
                                     type="checkbox"
                                     checked={currentRound.team1Player2.isNello}
                                     onChange={(e) => handleHistoryEdit(index, 'team1_2_isNello', e.target.checked)}
+                                    disabled={isEditing}
                                   />
                                   <span className="text-xs">Nil</span>
                                 </label>
@@ -924,7 +931,7 @@ export default function SpadesGame() {
                                   max="13"
                                   value={currentRound.team2Player1.bid}
                                   onChange={(e) => handleHistoryEdit(index, 'team2_1_bid', e.target.value)}
-                                  disabled={currentRound.team2Player1.isNello}
+                                  disabled={currentRound.team2Player1.isNello || isEditing}
                                   className="w-16 text-center p-1 rounded border"
                                 />
                                 <label className="flex items-center justify-center gap-1">
@@ -932,6 +939,7 @@ export default function SpadesGame() {
                                     type="checkbox"
                                     checked={currentRound.team2Player1.isNello}
                                     onChange={(e) => handleHistoryEdit(index, 'team2_1_isNello', e.target.checked)}
+                                    disabled={isEditing}
                                   />
                                   <span className="text-xs">Nil</span>
                                 </label>
@@ -961,7 +969,7 @@ export default function SpadesGame() {
                                   max="13"
                                   value={currentRound.team2Player2.bid}
                                   onChange={(e) => handleHistoryEdit(index, 'team2_2_bid', e.target.value)}
-                                  disabled={currentRound.team2Player2.isNello}
+                                  disabled={currentRound.team2Player2.isNello || isEditing}
                                   className="w-16 text-center p-1 rounded border"
                                 />
                                 <label className="flex items-center justify-center gap-1">
@@ -969,6 +977,7 @@ export default function SpadesGame() {
                                     type="checkbox"
                                     checked={currentRound.team2Player2.isNello}
                                     onChange={(e) => handleHistoryEdit(index, 'team2_2_isNello', e.target.checked)}
+                                    disabled={isEditing}
                                   />
                                   <span className="text-xs">Nil</span>
                                 </label>
@@ -1022,6 +1031,7 @@ export default function SpadesGame() {
                               <button
                                 onClick={() => startHistoryEdit(index)}
                                 className="button-card bg-blue-500 text-white px-2 py-1"
+                                disabled={isEditing}
                               >
                                 Edit
                               </button>
@@ -1045,6 +1055,7 @@ export default function SpadesGame() {
           className="button-card bg-gradient-to-br from-gray-900 to-black text-white rounded-full w-14 h-14 sm:w-12 sm:h-12 flex items-center justify-center shadow-lg hover:scale-110 transition-all duration-300 border-2 border-gray-700"
           title="Game Rules"
           aria-label="Show Game Rules"
+          disabled={isEditing}
         >
           <span className="text-3xl sm:text-2xl">♠</span>
         </button>
