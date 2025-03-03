@@ -245,10 +245,10 @@ export default function SpadesGame() {
       return;
     }
 
-    const team1Player1Bid = currentRound.team1Player1.isNello ? "Nil" : currentRound.team1Player1.bid;
-    const team1Player2Bid = currentRound.team1Player2.isNello ? "Nil" : currentRound.team1Player2.bid;
-    const team2Player1Bid = currentRound.team2Player1.isNello ? "Nil" : currentRound.team2Player1.bid;
-    const team2Player2Bid = currentRound.team2Player2.isNello ? "Nil" : currentRound.team2Player2.bid;
+    const team1Player1Bid = currentRound.team1Player1.isNello ? "Nello" : currentRound.team1Player1.bid;
+    const team1Player2Bid = currentRound.team1Player2.isNello ? "Nello" : currentRound.team1Player2.bid;
+    const team2Player1Bid = currentRound.team2Player1.isNello ? "Nello" : currentRound.team2Player1.bid;
+    const team2Player2Bid = currentRound.team2Player2.isNello ? "Nello" : currentRound.team2Player2.bid;
 
     const confirmMessage = `Confirm bids:\n\n${team1Score.name}:\n${team1Score.player1Name}: ${team1Player1Bid}\n${team1Score.player2Name}: ${team1Player2Bid}\n\n${team2Score.name}:\n${team2Score.player1Name}: ${team2Player1Bid}\n${team2Score.player2Name}: ${team2Player2Bid}\n\nTotal regular bids: ${totalBids}`;
 
@@ -268,8 +268,8 @@ export default function SpadesGame() {
       return;
     }
 
-    const team1Bids = `${currentRound.team1Player1.isNello ? "Nil" : currentRound.team1Player1.bid} + ${currentRound.team1Player2.isNello ? "Nil" : currentRound.team1Player2.bid}`;
-    const team2Bids = `${currentRound.team2Player1.isNello ? "Nil" : currentRound.team2Player1.bid} + ${currentRound.team2Player2.isNello ? "Nil" : currentRound.team2Player2.bid}`;
+    const team1Bids = `${currentRound.team1Player1.isNello ? "Nello" : currentRound.team1Player1.bid} + ${currentRound.team1Player2.isNello ? "Nello" : currentRound.team1Player2.bid}`;
+    const team2Bids = `${currentRound.team2Player1.isNello ? "Nello" : currentRound.team2Player1.bid} + ${currentRound.team2Player2.isNello ? "Nello" : currentRound.team2Player2.bid}`;
 
     const confirmMessage = `Confirm tricks:\n\n${team1Score.name}:\nBids: ${team1Bids}\nTricks Won: ${currentRound.team1Tricks}\n\n${team2Score.name}:\nBids: ${team2Bids}\nTricks Won: ${currentRound.team2Tricks}`;
 
@@ -316,18 +316,18 @@ export default function SpadesGame() {
       setTeam2Score(newTeam2Score);
 
       // Calculate bags for the round
-      const team1Bags = currentRound.team1Tricks - 
+      const team1RoundBags = Math.max(0, currentRound.team1Tricks - 
         (currentRound.team1Player1.isNello ? 0 : currentRound.team1Player1.bid) -
-        (currentRound.team1Player2.isNello ? 0 : currentRound.team1Player2.bid);
+        (currentRound.team1Player2.isNello ? 0 : currentRound.team1Player2.bid));
       
-      const team2Bags = currentRound.team2Tricks - 
+      const team2RoundBags = Math.max(0, currentRound.team2Tricks - 
         (currentRound.team2Player1.isNello ? 0 : currentRound.team2Player1.bid) -
-        (currentRound.team2Player2.isNello ? 0 : currentRound.team2Player2.bid);
+        (currentRound.team2Player2.isNello ? 0 : currentRound.team2Player2.bid));
 
       const roundWithBags = {
         ...currentRound,
-        team1Bags: Math.max(0, team1Bags),
-        team2Bags: Math.max(0, team2Bags)
+        team1Bags: team1RoundBags,
+        team2Bags: team2RoundBags
       };
 
       setHistory(prev => [...prev, roundWithBags]);
@@ -403,7 +403,7 @@ export default function SpadesGame() {
 
     return (
       <div className="mb-4">
-        <h5 className="font-semibold mb-2">Team {team} - Player {player} Nil Result:</h5>
+        <h5 className="font-semibold mb-2">Team {team} - Player {player} Nello Result:</h5>
         <div className="flex gap-2">
           <button
             onClick={() => handleNelloResult(team, player, true)}
@@ -644,6 +644,23 @@ export default function SpadesGame() {
     }
   };
 
+  // Add this function to calculate cumulative bags up to a specific round
+  const calculateCumulativeBags = (roundIndex: number, team: 1 | 2) => {
+    let totalBags = 0;
+    for (let i = 0; i <= roundIndex; i++) {
+      const round = history[i];
+      const roundBags = team === 1 ? round.team1Bags : round.team2Bags;
+      totalBags += roundBags;
+      
+      // Reset bags when penalty threshold is reached
+      const threshold = isShortGame ? 5 : 10;
+      if (totalBags >= threshold) {
+        totalBags = totalBags % threshold;
+      }
+    }
+    return totalBags;
+  };
+
   return (
     <>
       <div className="w-full max-w-6xl mx-auto p-2 sm:p-4">
@@ -709,7 +726,7 @@ export default function SpadesGame() {
               <div className="card-style p-4">
                 <h4 className="font-semibold mb-3">{team1Score.name}</h4>
                 <div className="mb-2 text-sm">
-                  Bids: {currentRound.team1Player1.isNello ? "Nil" : currentRound.team1Player1.bid} + {currentRound.team1Player2.isNello ? "Nil" : currentRound.team1Player2.bid}
+                  Bids: {currentRound.team1Player1.isNello ? "Nello" : currentRound.team1Player1.bid} + {currentRound.team1Player2.isNello ? "Nello" : currentRound.team1Player2.bid}
                 </div>
                 <label className="block">
                   <span className="text-sm">Tricks Won:</span>
@@ -744,7 +761,7 @@ export default function SpadesGame() {
               <div className="card-style p-4">
                 <h4 className="font-semibold mb-3">{team2Score.name}</h4>
                 <div className="mb-2 text-sm">
-                  Bids: {currentRound.team2Player1.isNello ? "Nil" : currentRound.team2Player1.bid} + {currentRound.team2Player2.isNello ? "Nil" : currentRound.team2Player2.bid}
+                  Bids: {currentRound.team2Player1.isNello ? "Nello" : currentRound.team2Player1.bid} + {currentRound.team2Player2.isNello ? "Nello" : currentRound.team2Player2.bid}
                 </div>
                 <label className="block">
                   <span className="text-sm">Tricks Won:</span>
@@ -842,7 +859,7 @@ export default function SpadesGame() {
                                   max="13"
                                   value={currentRound.team1Player1.bid}
                                   onChange={(e) => handleHistoryEdit(index, 'team1_1_bid', e.target.value)}
-                                  disabled={currentRound.team1Player1.isNello || isEditing}
+                                  disabled={currentRound.team1Player1.isNello}
                                   className="w-16 text-center p-1 rounded border"
                                 />
                                 <label className="flex items-center justify-center gap-1">
@@ -850,9 +867,9 @@ export default function SpadesGame() {
                                     type="checkbox"
                                     checked={currentRound.team1Player1.isNello}
                                     onChange={(e) => handleHistoryEdit(index, 'team1_1_isNello', e.target.checked)}
-                                    disabled={isEditing}
+                                    className="mr-2"
                                   />
-                                  <span className="text-xs">Nil</span>
+                                  <span className="text-xs">Nello</span>
                                 </label>
                                 {currentRound.team1Player1.isNello && (
                                   <select
@@ -867,7 +884,7 @@ export default function SpadesGame() {
                               </div>
                             ) : (
                               currentRound.team1Player1.isNello 
-                                ? `Nil ${currentRound.team1Player1.nelloSuccess ? '♠' : '×'}` 
+                                ? `Nello ${currentRound.team1Player1.nelloSuccess ? '♠' : '×'}` 
                                 : currentRound.team1Player1.bid
                             )}
                           </td>
@@ -880,7 +897,7 @@ export default function SpadesGame() {
                                   max="13"
                                   value={currentRound.team1Player2.bid}
                                   onChange={(e) => handleHistoryEdit(index, 'team1_2_bid', e.target.value)}
-                                  disabled={currentRound.team1Player2.isNello || isEditing}
+                                  disabled={currentRound.team1Player2.isNello}
                                   className="w-16 text-center p-1 rounded border"
                                 />
                                 <label className="flex items-center justify-center gap-1">
@@ -888,9 +905,9 @@ export default function SpadesGame() {
                                     type="checkbox"
                                     checked={currentRound.team1Player2.isNello}
                                     onChange={(e) => handleHistoryEdit(index, 'team1_2_isNello', e.target.checked)}
-                                    disabled={isEditing}
+                                    className="mr-2"
                                   />
-                                  <span className="text-xs">Nil</span>
+                                  <span className="text-xs">Nello</span>
                                 </label>
                                 {currentRound.team1Player2.isNello && (
                                   <select
@@ -905,7 +922,7 @@ export default function SpadesGame() {
                               </div>
                             ) : (
                               currentRound.team1Player2.isNello 
-                                ? `Nil ${currentRound.team1Player2.nelloSuccess ? '♠' : '×'}` 
+                                ? `Nello ${currentRound.team1Player2.nelloSuccess ? '♠' : '×'}` 
                                 : currentRound.team1Player2.bid
                             )}
                           </td>
@@ -921,7 +938,11 @@ export default function SpadesGame() {
                               />
                             ) : currentRound.team1Tricks}
                           </td>
-                          <td className="p-2 text-center text-xs sm:text-sm">{currentRound.team1Bags}</td>
+                          <td className="p-2 text-center text-xs sm:text-sm">
+                            {isEditing ? (
+                              <span>{currentRound.team1Bags}</span>
+                            ) : calculateCumulativeBags(index, 1)}
+                          </td>
                           <td className="p-2 text-center text-xs sm:text-sm">
                             {isEditing ? (
                               <div className="flex flex-col gap-1">
@@ -931,7 +952,7 @@ export default function SpadesGame() {
                                   max="13"
                                   value={currentRound.team2Player1.bid}
                                   onChange={(e) => handleHistoryEdit(index, 'team2_1_bid', e.target.value)}
-                                  disabled={currentRound.team2Player1.isNello || isEditing}
+                                  disabled={currentRound.team2Player1.isNello}
                                   className="w-16 text-center p-1 rounded border"
                                 />
                                 <label className="flex items-center justify-center gap-1">
@@ -939,9 +960,9 @@ export default function SpadesGame() {
                                     type="checkbox"
                                     checked={currentRound.team2Player1.isNello}
                                     onChange={(e) => handleHistoryEdit(index, 'team2_1_isNello', e.target.checked)}
-                                    disabled={isEditing}
+                                    className="mr-2"
                                   />
-                                  <span className="text-xs">Nil</span>
+                                  <span className="text-xs">Nello</span>
                                 </label>
                                 {currentRound.team2Player1.isNello && (
                                   <select
@@ -956,7 +977,7 @@ export default function SpadesGame() {
                               </div>
                             ) : (
                               currentRound.team2Player1.isNello 
-                                ? `Nil ${currentRound.team2Player1.nelloSuccess ? '♠' : '×'}` 
+                                ? `Nello ${currentRound.team2Player1.nelloSuccess ? '♠' : '×'}` 
                                 : currentRound.team2Player1.bid
                             )}
                           </td>
@@ -969,7 +990,7 @@ export default function SpadesGame() {
                                   max="13"
                                   value={currentRound.team2Player2.bid}
                                   onChange={(e) => handleHistoryEdit(index, 'team2_2_bid', e.target.value)}
-                                  disabled={currentRound.team2Player2.isNello || isEditing}
+                                  disabled={currentRound.team2Player2.isNello}
                                   className="w-16 text-center p-1 rounded border"
                                 />
                                 <label className="flex items-center justify-center gap-1">
@@ -977,9 +998,9 @@ export default function SpadesGame() {
                                     type="checkbox"
                                     checked={currentRound.team2Player2.isNello}
                                     onChange={(e) => handleHistoryEdit(index, 'team2_2_isNello', e.target.checked)}
-                                    disabled={isEditing}
+                                    className="mr-2"
                                   />
-                                  <span className="text-xs">Nil</span>
+                                  <span className="text-xs">Nello</span>
                                 </label>
                                 {currentRound.team2Player2.isNello && (
                                   <select
@@ -994,7 +1015,7 @@ export default function SpadesGame() {
                               </div>
                             ) : (
                               currentRound.team2Player2.isNello 
-                                ? `Nil ${currentRound.team2Player2.nelloSuccess ? '♠' : '×'}` 
+                                ? `Nello ${currentRound.team2Player2.nelloSuccess ? '♠' : '×'}` 
                                 : currentRound.team2Player2.bid
                             )}
                           </td>
@@ -1010,7 +1031,11 @@ export default function SpadesGame() {
                               />
                             ) : currentRound.team2Tricks}
                           </td>
-                          <td className="p-2 text-center text-xs sm:text-sm">{currentRound.team2Bags}</td>
+                          <td className="p-2 text-center text-xs sm:text-sm">
+                            {isEditing ? (
+                              <span>{currentRound.team2Bags}</span>
+                            ) : calculateCumulativeBags(index, 2)}
+                          </td>
                           <td className="p-2 text-center text-xs sm:text-sm">
                             {isEditing ? (
                               <div className="flex gap-2 justify-center">
@@ -1031,7 +1056,7 @@ export default function SpadesGame() {
                               <button
                                 onClick={() => startHistoryEdit(index)}
                                 className="button-card bg-blue-500 text-white px-2 py-1"
-                                disabled={isEditing}
+                                disabled={isEditing || editingHistoryIndex !== null}
                               >
                                 Edit
                               </button>
