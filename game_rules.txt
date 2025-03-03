@@ -1,0 +1,30 @@
+General Rules: 
+- The spade suit is always trump.
+
+- A (high), K, Q, J, 10, 9, 8, 7, 6, 5, 4, 3, 2.
+
+- There are 4 people per game and it is played in teams of 2.
+
+Object of the Game:
+To reach the predefined points total.
+
+Five hundred points is common, but 250 points is suitable for a short game.
+
+The Deal:
+The first dealer is chosen by a draw for high card, and thereafter the turn to deal proceeds clockwise. The entire deck is dealt one at a time, face down, beginning on the dealer's left. The players then pick up their cards and arrange them by suits and rank.
+
+The Bidding:
+Each player decides how many tricks they will be able to take and the total number of tricks that need to be won by the team is the sum of what each player bid. The player to the dealer's left starts the bidding and, in turn, each player states how many tricks they expect to win. Any player can call 'nello' which implies that they are bidding 0 wins. The total number of tricks between all 4 players must be less than or equal to 13.
+
+The Play:
+The player on the dealer's left makes the opening lead, and players must follow suit, if possible. If a player cannot follow suit, they may play a trump or discard. The trick is won by the player who plays the highest trump or if no trump was played, the player who played the highest card in the suit led. The player who wins the trick leads next. Play continues until none of the players have any cards left. Each hand is worth 13 tricks. Spades cannot be led unless played previously or player to lead has nothing but Spades in their hand.
+
+How to Keep Score:
+The game is scored as a team. If one person on the team bids 3 tricks and the other bids 4 tricks, the team as a whole needs to win seven tricks to make the contract.
+
+For making the contract (the number of tricks bid), the team scores 10 points for each trick bid. If a player called 'nello' and successfully didn't win a single trick, they gained 100 points, otherwise they lose 100 points. For each overtrick won, the team recives a 'bag' and a deduction of 100 points is made every time a team accumulates 10 bags throughout the game. Thus, the object is always to fulfill the bid exactly.
+
+For example, if the team's bid is Seven and they make seven tricks, the score would be 70. If the bid was Five and the team won eight tricks, the score would be 50 points: 50 points for the bid, and 3 bags for the three overtricks.
+
+If the team "breaks contract," that is, if they take fewer than the number of tricks bid, they lose the amount that was bid. For example, if a player bids Four and wins only three tricks, -40 points are awarded.
+

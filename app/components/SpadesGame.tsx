@@ -1,0 +1,773 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+
+interface TeamScore {
+  score: number;
+  bags: number;
+  name: string;
+  player1Name: string;
+  player2Name: string;
+}
+
+interface Player {
+  bid: number;
+  isNello: boolean;
+  nelloSuccess?: boolean;
+}
+
+interface Round {
+  team1Player1: Player;
+  team1Player2: Player;
+  team2Player1: Player;
+  team2Player2: Player;
+  team1Tricks: number;
+  team2Tricks: number;
+  team1Bags: number;
+  team2Bags: number;
+  biddingComplete: boolean;
+  tricksComplete: boolean;
+}
+
+const initialPlayerState: Player = {
+  bid: 0,
+  isNello: false,
+};
+
+const initialRoundState: Round = {
+  team1Player1: { ...initialPlayerState },
+  team1Player2: { ...initialPlayerState },
+  team2Player1: { ...initialPlayerState },
+  team2Player2: { ...initialPlayerState },
+  team1Tricks: 0,
+  team2Tricks: 0,
+  team1Bags: 0,
+  team2Bags: 0,
+  biddingComplete: false,
+  tricksComplete: false,
+};
+
+const GAME_RULES = `General Rules: 
+- The spade suit is always trump.
+- A (high), K, Q, J, 10, 9, 8, 7, 6, 5, 4, 3, 2.
+- There are 4 people per game and it is played in teams of 2.
+
+Object of the Game:
+To reach the predefined points total.
+Five hundred points is common, but 250 points is suitable for a short game.
+
+The Deal:
+The first dealer is chosen by a draw for high card, and thereafter the turn to deal proceeds clockwise. The entire deck is dealt one at a time, face down, beginning on the dealer's left. The players then pick up their cards and arrange them by suits and rank.
+
+The Bidding:
+Each player decides how many tricks they will be able to take and the total number of tricks that need to be won by the team is the sum of what each player bid. The player to the dealer's left starts the bidding and, in turn, each player states how many tricks they expect to win. Any player can call 'nello' which implies that they are bidding 0 wins. The total number of tricks between all 4 players must be less than or equal to 13.
+
+The Play:
+The player on the dealer's left makes the opening lead, and players must follow suit, if possible. If a player cannot follow suit, they may play a trump or discard. The trick is won by the player who plays the highest trump or if no trump was played, the player who played the highest card in the suit led. The player who wins the trick leads next. Play continues until none of the players have any cards left. Each hand is worth 13 tricks. Spades cannot be led unless played previously or player to lead has nothing but Spades in their hand.
+
+How to Keep Score:
+The game is scored as a team. If one person on the team bids 3 tricks and the other bids 4 tricks, the team as a whole needs to win seven tricks to make the contract.
+
+For making the contract (the number of tricks bid), the team scores 10 points for each trick bid. If a player called 'nello' and successfully didn't win a single trick, they gained 100 points, otherwise they lose 100 points. For each overtrick won, the team recives a 'bag' and a deduction of 100 points is made every time a team accumulates 10 bags throughout the game. Thus, the object is always to fulfill the bid exactly.
+
+For example, if the team's bid is Seven and they make seven tricks, the score would be 70. If the bid was Five and the team won eight tricks, the score would be 50 points: 50 points for the bid, and 3 bags for the three overtricks.
+
+If the team "breaks contract," that is, if they take fewer than the number of tricks bid, they lose the amount that was bid. For example, if a player bids Four and wins only three tricks, -40 points are awarded.`;
+
+export default function SpadesGame() {
+  const [team1Score, setTeam1Score] = useState<TeamScore>({ 
+    score: 0, 
+    bags: 0, 
+    name: "Team 1",
+    player1Name: "Player 1",
+    player2Name: "Player 2"
+  });
+  
+  const [team2Score, setTeam2Score] = useState<TeamScore>({ 
+    score: 0, 
+    bags: 0,
+    name: "Team 2",
+    player1Name: "Player 1",
+    player2Name: "Player 2"
+  });
+  
+  const [currentRound, setCurrentRound] = useState<Round>(initialRoundState);
+  const [history, setHistory] = useState<Round[]>([]);
+  const [isEditing, setIsEditing] = useState(false);
+  const [isShortGame, setIsShortGame] = useState(false);
+  const [isHydrated, setIsHydrated] = useState(false);
+  const [showRules, setShowRules] = useState(false);
+
+  // Handle hydration and localStorage
+  useEffect(() => {
+    const savedTeam1Score = localStorage.getItem('team1Score');
+    const savedTeam2Score = localStorage.getItem('team2Score');
+    const savedCurrentRound = localStorage.getItem('currentRound');
+    const savedHistory = localStorage.getItem('history');
+    const savedIsEditing = localStorage.getItem('isEditing');
+    const savedIsShortGame = localStorage.getItem('isShortGame');
+
+    if (savedTeam1Score) setTeam1Score(JSON.parse(savedTeam1Score));
+    if (savedTeam2Score) setTeam2Score(JSON.parse(savedTeam2Score));
+    if (savedCurrentRound) setCurrentRound(JSON.parse(savedCurrentRound));
+    if (savedHistory) setHistory(JSON.parse(savedHistory));
+    if (savedIsEditing) setIsEditing(JSON.parse(savedIsEditing));
+    if (savedIsShortGame) setIsShortGame(JSON.parse(savedIsShortGame));
+    
+    setIsHydrated(true);
+  }, []);
+
+  // Save state to localStorage whenever it changes
+  useEffect(() => {
+    if (!isHydrated) return;
+    
+    localStorage.setItem('team1Score', JSON.stringify(team1Score));
+  }, [team1Score, isHydrated]);
+
+  useEffect(() => {
+    if (!isHydrated) return;
+    
+    localStorage.setItem('team2Score', JSON.stringify(team2Score));
+  }, [team2Score, isHydrated]);
+
+  useEffect(() => {
+    if (!isHydrated) return;
+    
+    localStorage.setItem('currentRound', JSON.stringify(currentRound));
+  }, [currentRound, isHydrated]);
+
+  useEffect(() => {
+    if (!isHydrated) return;
+    
+    localStorage.setItem('history', JSON.stringify(history));
+  }, [history, isHydrated]);
+
+  useEffect(() => {
+    if (!isHydrated) return;
+    
+    localStorage.setItem('isEditing', JSON.stringify(isEditing));
+  }, [isEditing, isHydrated]);
+
+  useEffect(() => {
+    if (!isHydrated) return;
+    
+    localStorage.setItem('isShortGame', JSON.stringify(isShortGame));
+  }, [isShortGame, isHydrated]);
+
+  // Don't render until after hydration to prevent mismatch
+  if (!isHydrated) {
+    return null;
+  }
+
+  const calculateTeamScore = (
+    players: Player[], 
+    tricks: number, 
+    currentScore: TeamScore
+  ) => {
+    let newScore = { ...currentScore };
+    let totalBid = 0;
+    let totalBags = 0;
+
+    players.forEach(player => {
+      if (player.isNello) {
+        if (player.nelloSuccess) {
+          newScore.score += 100;
+        } else {
+          newScore.score -= 100;
+        }
+      } else {
+        totalBid += player.bid;
+      }
+    });
+
+    if (tricks >= totalBid) {
+      newScore.score += totalBid * 10;
+      totalBags = tricks - totalBid;
+    } else {
+      newScore.score -= totalBid * 10;
+    }
+
+    newScore.bags += totalBags;
+    
+    // Check for bag penalty based on game type
+    if (isShortGame) {
+      while (newScore.bags >= 5) {
+        newScore.score -= 50;
+        newScore.bags -= 5;
+      }
+    } else {
+      while (newScore.bags >= 10) {
+        newScore.score -= 100;
+        newScore.bags -= 10;
+      }
+    }
+    
+    return newScore;
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>, team: 1 | 2, player: 1 | 2, field: keyof Player) => {
+    const playerKey = `team${team}Player${player}` as keyof Round;
+    const value = field === 'isNello' ? e.target.checked : Math.max(0, Math.min(13, parseInt(e.target.value) || 0));
+    
+    setCurrentRound(prev => ({
+      ...prev,
+      [playerKey]: {
+        ...(prev[playerKey] as Player),
+        [field]: value,
+        ...(field === 'isNello' && value ? { bid: 0 } : {}),
+      }
+    }));
+  };
+
+  const handleTricksChange = (e: React.ChangeEvent<HTMLInputElement>, team: 1 | 2) => {
+    const value = Math.max(0, Math.min(13, parseInt(e.target.value) || 0));
+    setCurrentRound(prev => {
+      // Calculate what the other team's tricks would be
+      const otherTeam = team === 1 ? 2 : 1;
+      const otherTeamTricks = team === 1 ? prev.team2Tricks : prev.team1Tricks;
+      
+      // If this would make total tricks exceed 13, adjust the other team's tricks
+      const newOtherTeamTricks = Math.max(0, 13 - value);
+      
+      return {
+        ...prev,
+        [`team${team}Tricks`]: value,
+        [`team${otherTeam}Tricks`]: newOtherTeamTricks
+      };
+    });
+  };
+
+  const submitBids = () => {
+    const totalBids = 
+      (currentRound.team1Player1.isNello ? 0 : currentRound.team1Player1.bid) +
+      (currentRound.team1Player2.isNello ? 0 : currentRound.team1Player2.bid) +
+      (currentRound.team2Player1.isNello ? 0 : currentRound.team2Player1.bid) +
+      (currentRound.team2Player2.isNello ? 0 : currentRound.team2Player2.bid);
+
+    if (totalBids > 13) {
+      alert("Total bids cannot exceed 13!");
+      return;
+    }
+
+    setCurrentRound(prev => ({
+      ...prev,
+      biddingComplete: true
+    }));
+  };
+
+  const submitTricks = () => {
+    const totalTricks = currentRound.team1Tricks + currentRound.team2Tricks;
+
+    if (totalTricks !== 13) {
+      alert("Total tricks must equal 13!");
+      return;
+    }
+
+    setCurrentRound(prev => ({
+      ...prev,
+      tricksComplete: true
+    }));
+  };
+
+  const handleNelloResult = (team: 1 | 2, player: 1 | 2, success: boolean) => {
+    const playerKey = `team${team}Player${player}` as keyof Round;
+    setCurrentRound(prev => ({
+      ...prev,
+      [playerKey]: {
+        ...(prev[playerKey] as Player),
+        nelloSuccess: success
+      }
+    }));
+  };
+
+  const finalizeRound = () => {
+    const newTeam1Score = calculateTeamScore(
+      [currentRound.team1Player1, currentRound.team1Player2],
+      currentRound.team1Tricks,
+      team1Score
+    );
+    const newTeam2Score = calculateTeamScore(
+      [currentRound.team2Player1, currentRound.team2Player2],
+      currentRound.team2Tricks,
+      team2Score
+    );
+
+    // Calculate bags for the round
+    const team1Bags = currentRound.team1Tricks - 
+      (currentRound.team1Player1.isNello ? 0 : currentRound.team1Player1.bid) -
+      (currentRound.team1Player2.isNello ? 0 : currentRound.team1Player2.bid);
+    
+    const team2Bags = currentRound.team2Tricks - 
+      (currentRound.team2Player1.isNello ? 0 : currentRound.team2Player1.bid) -
+      (currentRound.team2Player2.isNello ? 0 : currentRound.team2Player2.bid);
+
+    const roundWithBags = {
+      ...currentRound,
+      team1Bags: Math.max(0, team1Bags),
+      team2Bags: Math.max(0, team2Bags)
+    };
+
+    setTeam1Score(newTeam1Score);
+    setTeam2Score(newTeam2Score);
+    setHistory(prev => [...prev, roundWithBags]);
+    setCurrentRound(initialRoundState);
+
+    // Check for game end
+    const winningScore = isShortGame ? 250 : 500;
+    if (newTeam1Score.score >= winningScore || newTeam2Score.score >= winningScore) {
+      const winner = newTeam1Score.score > newTeam2Score.score ? team1Score.name : team2Score.name;
+      setTimeout(() => {
+        alert(`Game Over! ${winner} wins!`);
+      }, 100);
+    }
+  };
+
+  const handleNameChange = (
+    team: 1 | 2,
+    field: 'name' | 'player1Name' | 'player2Name',
+    value: string
+  ) => {
+    if (team === 1) {
+      setTeam1Score(prev => ({ ...prev, [field]: value }));
+    } else {
+      setTeam2Score(prev => ({ ...prev, [field]: value }));
+    }
+  };
+
+  const renderTeamHeader = (team: 1 | 2, teamScore: TeamScore) => {
+    return (
+      <div className="text-center mb-8">
+        {isEditing ? (
+          <div className="space-y-2">
+            <input
+              type="text"
+              value={teamScore.name}
+              onChange={(e) => handleNameChange(team, 'name', e.target.value)}
+              className="w-full text-xl font-semibold text-center p-1 rounded border"
+              placeholder="Team Name"
+            />
+            <input
+              type="text"
+              value={teamScore.player1Name}
+              onChange={(e) => handleNameChange(team, 'player1Name', e.target.value)}
+              className="w-full text-sm text-center p-1 rounded border"
+              placeholder="Player 1 Name"
+            />
+            <input
+              type="text"
+              value={teamScore.player2Name}
+              onChange={(e) => handleNameChange(team, 'player2Name', e.target.value)}
+              className="w-full text-sm text-center p-1 rounded border"
+              placeholder="Player 2 Name"
+            />
+          </div>
+        ) : (
+          <>
+            <h2 className="text-xl font-semibold mb-1">{teamScore.name}</h2>
+            <p className="text-sm mb-1">{teamScore.player1Name} & {teamScore.player2Name}</p>
+          </>
+        )}
+        <p className="text-2xl mb-1">Score: {teamScore.score}</p>
+        <p className="text-sm">Bags: {teamScore.bags}</p>
+      </div>
+    );
+  };
+
+  const renderNelloConfirmation = (team: 1 | 2, player: 1 | 2) => {
+    const playerKey = `team${team}Player${player}` as keyof Round;
+    const playerData = currentRound[playerKey] as Player;
+
+    if (!playerData.isNello) return null;
+
+    return (
+      <div className="mb-4">
+        <h5 className="font-semibold mb-2">Team {team} - Player {player} Nil Result:</h5>
+        <div className="flex gap-2">
+          <button
+            onClick={() => handleNelloResult(team, player, true)}
+            className={`px-3 py-1 rounded ${
+              playerData.nelloSuccess === true 
+                ? 'bg-green-500 text-white' 
+                : 'bg-gray-200 hover:bg-green-500 hover:text-white'
+            }`}
+          >
+            Success
+          </button>
+          <button
+            onClick={() => handleNelloResult(team, player, false)}
+            className={`px-3 py-1 rounded ${
+              playerData.nelloSuccess === false 
+                ? 'bg-red-500 text-white' 
+                : 'bg-gray-200 hover:bg-red-500 hover:text-white'
+            }`}
+          >
+            Failed
+          </button>
+        </div>
+      </div>
+    );
+  };
+
+  const renderPlayerInput = (team: 1 | 2, player: 1 | 2) => {
+    const playerKey = `team${team}Player${player}` as keyof Round;
+    const playerData = currentRound[playerKey] as Player;
+    const teamScore = team === 1 ? team1Score : team2Score;
+    const playerName = player === 1 ? teamScore.player1Name : teamScore.player2Name;
+
+    return (
+      <div className="bg-white dark:bg-gray-700 p-4 rounded">
+        <h4 className="font-semibold mb-3">{playerName}</h4>
+        <label className="block mb-2">
+          Bid:
+          <input
+            type="number"
+            min="0"
+            max="13"
+            value={playerData.bid}
+            onChange={(e) => handleInputChange(e, team, player, 'bid')}
+            disabled={playerData.isNello}
+            className="w-full mt-1 p-2 rounded border dark:bg-gray-600"
+          />
+        </label>
+        <label className="block">
+          <input
+            type="checkbox"
+            checked={playerData.isNello}
+            onChange={(e) => handleInputChange(e, team, player, 'isNello')}
+            className="mr-2"
+          />
+          Nello
+        </label>
+      </div>
+    );
+  };
+
+  const allNelloResultsSubmitted = () => {
+    const checkPlayer = (player: Player) => {
+      return !player.isNello || (player.isNello && typeof player.nelloSuccess === 'boolean');
+    };
+
+    return checkPlayer(currentRound.team1Player1) &&
+           checkPlayer(currentRound.team1Player2) &&
+           checkPlayer(currentRound.team2Player1) &&
+           checkPlayer(currentRound.team2Player2);
+  };
+
+  const resetGame = () => {
+    if (window.confirm('Are you sure you want to reset the game? Team names and player names will be kept, but all scores and history will be cleared.')) {
+      const newTeam1Score = { 
+        ...team1Score, 
+        score: 0,
+        bags: 0
+      };
+      const newTeam2Score = { 
+        ...team2Score, 
+        score: 0,
+        bags: 0
+      };
+      
+      setTeam1Score(newTeam1Score);
+      setTeam2Score(newTeam2Score);
+      setCurrentRound(initialRoundState);
+      setHistory([]);
+      
+      localStorage.setItem('team1Score', JSON.stringify(newTeam1Score));
+      localStorage.setItem('team2Score', JSON.stringify(newTeam2Score));
+      localStorage.setItem('currentRound', JSON.stringify(initialRoundState));
+      localStorage.setItem('history', JSON.stringify([]));
+    }
+  };
+
+  const resetEverything = () => {
+    if (window.confirm('Are you sure you want to reset everything? This will clear all data including team names and player names.')) {
+      const initialTeam1Score = { 
+        score: 0, 
+        bags: 0, 
+        name: "Team 1",
+        player1Name: "Player 1",
+        player2Name: "Player 2"
+      };
+      const initialTeam2Score = { 
+        score: 0, 
+        bags: 0,
+        name: "Team 2",
+        player1Name: "Player 1",
+        player2Name: "Player 2"
+      };
+      
+      setTeam1Score(initialTeam1Score);
+      setTeam2Score(initialTeam2Score);
+      setCurrentRound(initialRoundState);
+      setHistory([]);
+      setIsEditing(false);
+      
+      localStorage.setItem('team1Score', JSON.stringify(initialTeam1Score));
+      localStorage.setItem('team2Score', JSON.stringify(initialTeam2Score));
+      localStorage.setItem('currentRound', JSON.stringify(initialRoundState));
+      localStorage.setItem('history', JSON.stringify([]));
+      localStorage.setItem('isEditing', JSON.stringify(false));
+    }
+  };
+
+  return (
+    <>
+      <div className="w-full max-w-6xl mx-auto p-2 sm:p-4">
+        <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-8">
+          <div className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto">
+            <h1 className="text-2xl sm:text-3xl font-bold">Spades Scorecard</h1>
+            <div className="flex flex-col sm:flex-row items-center gap-2">
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={isShortGame}
+                  onChange={(e) => setIsShortGame(e.target.checked)}
+                  className="sr-only peer"
+                />
+                <div className="w-14 h-7 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:start-[4px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
+                <span className="ms-3 text-sm font-medium whitespace-nowrap">
+                  {isShortGame ? "Short Game" : "Regular Game"}
+                </span>
+              </label>
+              <span className="text-xs text-gray-500 dark:text-gray-400 text-center sm:text-left">
+                {isShortGame ? "250 pts, 5 bags = -50" : "500 pts, 10 bags = -100"}
+              </span>
+            </div>
+          </div>
+          <div className="flex flex-wrap justify-center sm:justify-end gap-2 sm:gap-4 w-full sm:w-auto">
+            <button
+              onClick={() => setIsEditing(!isEditing)}
+              className="px-3 sm:px-4 py-2 rounded bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-sm sm:text-base"
+            >
+              {isEditing ? "Save Names" : "Edit Names"}
+            </button>
+            <button
+              onClick={resetGame}
+              className="px-3 sm:px-4 py-2 rounded bg-yellow-500 hover:bg-yellow-600 text-white text-sm sm:text-base"
+            >
+              Reset Game
+            </button>
+            <button
+              onClick={resetEverything}
+              className="px-3 sm:px-4 py-2 rounded bg-red-500 hover:bg-red-600 text-white text-sm sm:text-base"
+            >
+              Reset All
+            </button>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-8">
+          {/* Left Column - Team 1 */}
+          <div className="bg-gray-50 dark:bg-gray-800 p-4 sm:p-6 rounded-lg">
+            {renderTeamHeader(1, team1Score)}
+            
+            {!currentRound.biddingComplete ? (
+              <div className="space-y-4">
+                {renderPlayerInput(1, 1)}
+                {renderPlayerInput(1, 2)}
+              </div>
+            ) : !currentRound.tricksComplete ? (
+              <div className="bg-white dark:bg-gray-700 p-4 rounded">
+                <h4 className="font-semibold mb-3">{team1Score.name}</h4>
+                <div className="mb-2 text-sm">
+                  Bids: {currentRound.team1Player1.isNello ? "Nil" : currentRound.team1Player1.bid} + {currentRound.team1Player2.isNello ? "Nil" : currentRound.team1Player2.bid}
+                </div>
+                <label className="block">
+                  <span className="text-sm">Tricks Won:</span>
+                  <input
+                    type="number"
+                    min="0"
+                    max="13"
+                    value={currentRound.team1Tricks}
+                    onChange={(e) => handleTricksChange(e, 1)}
+                    className="w-full mt-1 p-2 rounded border dark:bg-gray-600"
+                  />
+                </label>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {renderNelloConfirmation(1, 1)}
+                {renderNelloConfirmation(1, 2)}
+              </div>
+            )}
+          </div>
+
+          {/* Right Column - Team 2 */}
+          <div className="bg-gray-50 dark:bg-gray-800 p-4 sm:p-6 rounded-lg">
+            {renderTeamHeader(2, team2Score)}
+            
+            {!currentRound.biddingComplete ? (
+              <div className="space-y-4">
+                {renderPlayerInput(2, 1)}
+                {renderPlayerInput(2, 2)}
+              </div>
+            ) : !currentRound.tricksComplete ? (
+              <div className="bg-white dark:bg-gray-700 p-4 rounded">
+                <h4 className="font-semibold mb-3">{team2Score.name}</h4>
+                <div className="mb-2 text-sm">
+                  Bids: {currentRound.team2Player1.isNello ? "Nil" : currentRound.team2Player1.bid} + {currentRound.team2Player2.isNello ? "Nil" : currentRound.team2Player2.bid}
+                </div>
+                <label className="block">
+                  <span className="text-sm">Tricks Won:</span>
+                  <input
+                    type="number"
+                    min="0"
+                    max="13"
+                    value={currentRound.team2Tricks}
+                    onChange={(e) => handleTricksChange(e, 2)}
+                    className="w-full mt-1 p-2 rounded border dark:bg-gray-600"
+                  />
+                </label>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {renderNelloConfirmation(2, 1)}
+                {renderNelloConfirmation(2, 2)}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {!currentRound.tricksComplete && currentRound.biddingComplete && (
+          <div className="text-center text-sm mt-4">
+            <p className="mb-2">
+              Total Tricks: {currentRound.team1Tricks + currentRound.team2Tricks}/13
+            </p>
+            {currentRound.team1Tricks + currentRound.team2Tricks !== 13 && (
+              <p className="text-red-500">
+                Total tricks must equal 13
+              </p>
+            )}
+          </div>
+        )}
+
+        <button
+          onClick={
+            !currentRound.biddingComplete ? submitBids :
+            !currentRound.tricksComplete ? submitTricks :
+            finalizeRound
+          }
+          disabled={
+            (currentRound.tricksComplete && !allNelloResultsSubmitted()) ||
+            (!currentRound.tricksComplete && currentRound.biddingComplete && 
+             currentRound.team1Tricks + currentRound.team2Tricks !== 13)
+          }
+          className={`w-full mt-6 py-2 px-4 rounded transition-colors ${
+            (currentRound.tricksComplete && !allNelloResultsSubmitted()) ||
+            (!currentRound.tricksComplete && currentRound.biddingComplete && 
+             currentRound.team1Tricks + currentRound.team2Tricks !== 13)
+              ? 'bg-gray-400 cursor-not-allowed'
+              : 'bg-blue-500 hover:bg-blue-600 text-white'
+          }`}
+        >
+          {!currentRound.biddingComplete ? "Submit Bids" :
+           !currentRound.tricksComplete ? "Submit Tricks" :
+           "Finalize Round"}
+        </button>
+
+        {history.length > 0 && (
+          <div className="mt-8">
+            <h3 className="text-lg font-semibold mb-4">Round History</h3>
+            <div className="overflow-x-auto -mx-2 sm:mx-0">
+              <div className="inline-block min-w-full align-middle">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-gray-100 dark:bg-gray-800 whitespace-nowrap">
+                      <th className="p-2 text-xs sm:text-sm">Round</th>
+                      <th className="p-2 text-xs sm:text-sm">{team1Score.player1Name}</th>
+                      <th className="p-2 text-xs sm:text-sm">{team1Score.player2Name}</th>
+                      <th className="p-2 text-xs sm:text-sm">{team1Score.name} Tricks</th>
+                      <th className="p-2 text-xs sm:text-sm">{team1Score.name} Bags</th>
+                      <th className="p-2 text-xs sm:text-sm">{team2Score.player1Name}</th>
+                      <th className="p-2 text-xs sm:text-sm">{team2Score.player2Name}</th>
+                      <th className="p-2 text-xs sm:text-sm">{team2Score.name} Tricks</th>
+                      <th className="p-2 text-xs sm:text-sm">{team2Score.name} Bags</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {history.map((round, index) => (
+                      <tr key={index} className="border-b dark:border-gray-700 whitespace-nowrap">
+                        <td className="p-2 text-center text-xs sm:text-sm">{index + 1}</td>
+                        <td className="p-2 text-center text-xs sm:text-sm">
+                          {round.team1Player1.isNello 
+                            ? `Nil ${round.team1Player1.nelloSuccess ? '✓' : '✗'}` 
+                            : round.team1Player1.bid}
+                        </td>
+                        <td className="p-2 text-center text-xs sm:text-sm">
+                          {round.team1Player2.isNello 
+                            ? `Nil ${round.team1Player2.nelloSuccess ? '✓' : '✗'}` 
+                            : round.team1Player2.bid}
+                        </td>
+                        <td className="p-2 text-center text-xs sm:text-sm">{round.team1Tricks}</td>
+                        <td className="p-2 text-center text-xs sm:text-sm">{round.team1Bags}</td>
+                        <td className="p-2 text-center text-xs sm:text-sm">
+                          {round.team2Player1.isNello 
+                            ? `Nil ${round.team2Player1.nelloSuccess ? '✓' : '✗'}` 
+                            : round.team2Player1.bid}
+                        </td>
+                        <td className="p-2 text-center text-xs sm:text-sm">
+                          {round.team2Player2.isNello 
+                            ? `Nil ${round.team2Player2.nelloSuccess ? '✓' : '✗'}` 
+                            : round.team2Player2.bid}
+                        </td>
+                        <td className="p-2 text-center text-xs sm:text-sm">{round.team2Tricks}</td>
+                        <td className="p-2 text-center text-xs sm:text-sm">{round.team2Bags}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Rules Button */}
+      <div className="fixed bottom-4 left-4 z-[9999]">
+        <button
+          onClick={() => setShowRules(true)}
+          className="bg-blue-500 hover:bg-blue-600 text-white rounded-full w-14 h-14 sm:w-12 sm:h-12 flex items-center justify-center shadow-lg transition-colors"
+          title="Game Rules"
+          aria-label="Show Game Rules"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7 sm:h-6 sm:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </button>
+      </div>
+
+      {/* Rules Modal */}
+      {showRules && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-[9999] flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg w-full max-w-2xl max-h-[90vh] overflow-hidden shadow-xl">
+            <div className="sticky top-0 p-4 border-b dark:border-gray-700 flex justify-between items-center bg-white dark:bg-gray-800">
+              <h2 className="text-xl font-bold">Spades Rules</h2>
+              <button
+                onClick={() => setShowRules(false)}
+                className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                aria-label="Close Rules"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="p-4 overflow-y-auto max-h-[calc(90vh-8rem)]">
+              <div className="prose dark:prose-invert max-w-none">
+                {GAME_RULES.split('\n\n').map((paragraph, index) => (
+                  <p key={index} className="mb-4 text-base sm:text-sm">
+                    {paragraph.split('\n').map((line, lineIndex) => (
+                      <span key={lineIndex}>
+                        {line}
+                        {lineIndex < paragraph.split('\n').length - 1 && <br />}
+                      </span>
+                    ))}
+                  </p>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+} 
