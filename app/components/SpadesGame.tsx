@@ -249,10 +249,19 @@ export default function SpadesGame() {
       return;
     }
 
-    setCurrentRound(prev => ({
-      ...prev,
-      biddingComplete: true
-    }));
+    const team1Player1Bid = currentRound.team1Player1.isNello ? "Nil" : currentRound.team1Player1.bid;
+    const team1Player2Bid = currentRound.team1Player2.isNello ? "Nil" : currentRound.team1Player2.bid;
+    const team2Player1Bid = currentRound.team2Player1.isNello ? "Nil" : currentRound.team2Player1.bid;
+    const team2Player2Bid = currentRound.team2Player2.isNello ? "Nil" : currentRound.team2Player2.bid;
+
+    const confirmMessage = `Confirm bids:\n\n${team1Score.name}:\n${team1Score.player1Name}: ${team1Player1Bid}\n${team1Score.player2Name}: ${team1Player2Bid}\n\n${team2Score.name}:\n${team2Score.player1Name}: ${team2Player1Bid}\n${team2Score.player2Name}: ${team2Player2Bid}\n\nTotal regular bids: ${totalBids}`;
+
+    if (window.confirm(confirmMessage)) {
+      setCurrentRound(prev => ({
+        ...prev,
+        biddingComplete: true
+      }));
+    }
   };
 
   const submitTricks = () => {
@@ -263,10 +272,17 @@ export default function SpadesGame() {
       return;
     }
 
-    setCurrentRound(prev => ({
-      ...prev,
-      tricksComplete: true
-    }));
+    const team1Bids = `${currentRound.team1Player1.isNello ? "Nil" : currentRound.team1Player1.bid} + ${currentRound.team1Player2.isNello ? "Nil" : currentRound.team1Player2.bid}`;
+    const team2Bids = `${currentRound.team2Player1.isNello ? "Nil" : currentRound.team2Player1.bid} + ${currentRound.team2Player2.isNello ? "Nil" : currentRound.team2Player2.bid}`;
+
+    const confirmMessage = `Confirm tricks:\n\n${team1Score.name}:\nBids: ${team1Bids}\nTricks Won: ${currentRound.team1Tricks}\n\n${team2Score.name}:\nBids: ${team2Bids}\nTricks Won: ${currentRound.team2Tricks}`;
+
+    if (window.confirm(confirmMessage)) {
+      setCurrentRound(prev => ({
+        ...prev,
+        tricksComplete: true
+      }));
+    }
   };
 
   const handleNelloResult = (team: 1 | 2, player: 1 | 2, success: boolean) => {
@@ -281,6 +297,7 @@ export default function SpadesGame() {
   };
 
   const finalizeRound = () => {
+    // Calculate new scores first to show in confirmation
     const newTeam1Score = calculateTeamScore(
       [currentRound.team1Player1, currentRound.team1Player2],
       currentRound.team1Tricks,
@@ -292,33 +309,42 @@ export default function SpadesGame() {
       team2Score
     );
 
-    // Calculate bags for the round
-    const team1Bags = currentRound.team1Tricks - 
-      (currentRound.team1Player1.isNello ? 0 : currentRound.team1Player1.bid) -
-      (currentRound.team1Player2.isNello ? 0 : currentRound.team1Player2.bid);
-    
-    const team2Bags = currentRound.team2Tricks - 
-      (currentRound.team2Player1.isNello ? 0 : currentRound.team2Player1.bid) -
-      (currentRound.team2Player2.isNello ? 0 : currentRound.team2Player2.bid);
+    // Calculate point changes
+    const team1PointChange = newTeam1Score.score - team1Score.score;
+    const team2PointChange = newTeam2Score.score - team2Score.score;
 
-    const roundWithBags = {
-      ...currentRound,
-      team1Bags: Math.max(0, team1Bags),
-      team2Bags: Math.max(0, team2Bags)
-    };
+    const confirmMessage = `Round Summary:\n\n${team1Score.name}:\nPoints: ${team1Score.score} → ${newTeam1Score.score} (${team1PointChange >= 0 ? '+' : ''}${team1PointChange})\nBags: ${team1Score.bags} → ${newTeam1Score.bags}\n\n${team2Score.name}:\nPoints: ${team2Score.score} → ${newTeam2Score.score} (${team2PointChange >= 0 ? '+' : ''}${team2PointChange})\nBags: ${team2Score.bags} → ${newTeam2Score.bags}\n\nConfirm to finalize round?`;
 
-    setTeam1Score(newTeam1Score);
-    setTeam2Score(newTeam2Score);
-    setHistory(prev => [...prev, roundWithBags]);
-    setCurrentRound(initialRoundState);
+    if (window.confirm(confirmMessage)) {
+      setTeam1Score(newTeam1Score);
+      setTeam2Score(newTeam2Score);
 
-    // Check for game end
-    const winningScore = isShortGame ? 250 : 500;
-    if (newTeam1Score.score >= winningScore || newTeam2Score.score >= winningScore) {
-      const winner = newTeam1Score.score > newTeam2Score.score ? team1Score.name : team2Score.name;
-      setTimeout(() => {
-        alert(`Game Over! ${winner} wins!`);
-      }, 100);
+      // Calculate bags for the round
+      const team1Bags = currentRound.team1Tricks - 
+        (currentRound.team1Player1.isNello ? 0 : currentRound.team1Player1.bid) -
+        (currentRound.team1Player2.isNello ? 0 : currentRound.team1Player2.bid);
+      
+      const team2Bags = currentRound.team2Tricks - 
+        (currentRound.team2Player1.isNello ? 0 : currentRound.team2Player1.bid) -
+        (currentRound.team2Player2.isNello ? 0 : currentRound.team2Player2.bid);
+
+      const roundWithBags = {
+        ...currentRound,
+        team1Bags: Math.max(0, team1Bags),
+        team2Bags: Math.max(0, team2Bags)
+      };
+
+      setHistory(prev => [...prev, roundWithBags]);
+      setCurrentRound(initialRoundState);
+
+      // Check for game end
+      const winningScore = isShortGame ? 250 : 500;
+      if (newTeam1Score.score >= winningScore || newTeam2Score.score >= winningScore) {
+        const winner = newTeam1Score.score > newTeam2Score.score ? team1Score.name : team2Score.name;
+        setTimeout(() => {
+          alert(`Game Over! ${winner} wins!`);
+        }, 100);
+      }
     }
   };
 
@@ -385,20 +411,20 @@ export default function SpadesGame() {
         <div className="flex gap-2">
           <button
             onClick={() => handleNelloResult(team, player, true)}
-            className={`px-3 py-1 rounded ${
+            className={`button-card ${
               playerData.nelloSuccess === true 
                 ? 'bg-green-500 text-white' 
-                : 'bg-gray-200 hover:bg-green-500 hover:text-white'
+                : 'hover:bg-green-500 hover:text-white'
             }`}
           >
             Success
           </button>
           <button
             onClick={() => handleNelloResult(team, player, false)}
-            className={`px-3 py-1 rounded ${
+            className={`button-card ${
               playerData.nelloSuccess === false 
                 ? 'bg-red-500 text-white' 
-                : 'bg-gray-200 hover:bg-red-500 hover:text-white'
+                : 'hover:bg-red-500 hover:text-white'
             }`}
           >
             Failed
@@ -512,52 +538,54 @@ export default function SpadesGame() {
   return (
     <>
       <div className="w-full max-w-6xl mx-auto p-2 sm:p-4">
-        <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-8">
-          <div className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto">
-            <h1 className="text-2xl sm:text-3xl font-bold">Spades Scorecard</h1>
-            <div className="flex flex-col sm:flex-row items-center gap-2">
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={isShortGame}
-                  onChange={(e) => setIsShortGame(e.target.checked)}
-                  className="sr-only peer"
-                />
-                <div className="w-14 h-7 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:start-[4px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
-                <span className="ms-3 text-sm font-medium whitespace-nowrap">
-                  {isShortGame ? "Short Game" : "Regular Game"}
+        <div className="card-style spade-pattern p-4 sm:p-6 mb-8">
+          <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto">
+              <h1 className="text-2xl sm:text-3xl font-bold">♠ Spades Scorecard</h1>
+              <div className="flex flex-col sm:flex-row items-center gap-2">
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={isShortGame}
+                    onChange={(e) => setIsShortGame(e.target.checked)}
+                    className="sr-only peer"
+                  />
+                  <div className="w-14 h-7 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:start-[4px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
+                  <span className="ms-3 text-sm font-medium whitespace-nowrap">
+                    {isShortGame ? "Short Game" : "Regular Game"}
+                  </span>
+                </label>
+                <span className="text-xs text-gray-500 dark:text-gray-400 text-center sm:text-left">
+                  {isShortGame ? "250 pts, 5 bags = -50" : "500 pts, 10 bags = -100"}
                 </span>
-              </label>
-              <span className="text-xs text-gray-500 dark:text-gray-400 text-center sm:text-left">
-                {isShortGame ? "250 pts, 5 bags = -50" : "500 pts, 10 bags = -100"}
-              </span>
+              </div>
             </div>
-          </div>
-          <div className="flex flex-wrap justify-center sm:justify-end gap-2 sm:gap-4 w-full sm:w-auto">
-            <button
-              onClick={() => setIsEditing(!isEditing)}
-              className="px-3 sm:px-4 py-2 rounded bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-sm sm:text-base"
-            >
-              {isEditing ? "Save Names" : "Edit Names"}
-            </button>
-            <button
-              onClick={resetGame}
-              className="px-3 sm:px-4 py-2 rounded bg-yellow-500 hover:bg-yellow-600 text-white text-sm sm:text-base"
-            >
-              Reset Game
-            </button>
-            <button
-              onClick={resetEverything}
-              className="px-3 sm:px-4 py-2 rounded bg-red-500 hover:bg-red-600 text-white text-sm sm:text-base"
-            >
-              Reset All
-            </button>
+            <div className="flex flex-wrap justify-center sm:justify-end gap-2 sm:gap-4 w-full sm:w-auto">
+              <button
+                onClick={() => setIsEditing(!isEditing)}
+                className="button-card"
+              >
+                {isEditing ? "Save Names" : "Edit Names"}
+              </button>
+              <button
+                onClick={resetGame}
+                className="button-card bg-yellow-500 text-white"
+              >
+                Reset Game
+              </button>
+              <button
+                onClick={resetEverything}
+                className="button-card bg-red-500 text-white"
+              >
+                Reset All
+              </button>
+            </div>
           </div>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-8">
           {/* Left Column - Team 1 */}
-          <div className="bg-gray-50 dark:bg-gray-800 p-4 sm:p-6 rounded-lg">
+          <div className="card-style spade-pattern p-4 sm:p-6">
             {renderTeamHeader(1, team1Score)}
             
             {!currentRound.biddingComplete ? (
@@ -566,7 +594,7 @@ export default function SpadesGame() {
                 {renderPlayerInput(1, 2)}
               </div>
             ) : !currentRound.tricksComplete ? (
-              <div className="bg-white dark:bg-gray-700 p-4 rounded">
+              <div className="card-style p-4">
                 <h4 className="font-semibold mb-3">{team1Score.name}</h4>
                 <div className="mb-2 text-sm">
                   Bids: {currentRound.team1Player1.isNello ? "Nil" : currentRound.team1Player1.bid} + {currentRound.team1Player2.isNello ? "Nil" : currentRound.team1Player2.bid}
@@ -579,7 +607,7 @@ export default function SpadesGame() {
                     max="13"
                     value={currentRound.team1Tricks}
                     onChange={(e) => handleTricksChange(e, 1)}
-                    className="w-full mt-1 p-2 rounded border dark:bg-gray-600"
+                    className="input-card w-full mt-1"
                   />
                 </label>
               </div>
@@ -592,7 +620,7 @@ export default function SpadesGame() {
           </div>
 
           {/* Right Column - Team 2 */}
-          <div className="bg-gray-50 dark:bg-gray-800 p-4 sm:p-6 rounded-lg">
+          <div className="card-style spade-pattern p-4 sm:p-6">
             {renderTeamHeader(2, team2Score)}
             
             {!currentRound.biddingComplete ? (
@@ -601,7 +629,7 @@ export default function SpadesGame() {
                 {renderPlayerInput(2, 2)}
               </div>
             ) : !currentRound.tricksComplete ? (
-              <div className="bg-white dark:bg-gray-700 p-4 rounded">
+              <div className="card-style p-4">
                 <h4 className="font-semibold mb-3">{team2Score.name}</h4>
                 <div className="mb-2 text-sm">
                   Bids: {currentRound.team2Player1.isNello ? "Nil" : currentRound.team2Player1.bid} + {currentRound.team2Player2.isNello ? "Nil" : currentRound.team2Player2.bid}
@@ -614,7 +642,7 @@ export default function SpadesGame() {
                     max="13"
                     value={currentRound.team2Tricks}
                     onChange={(e) => handleTricksChange(e, 2)}
-                    className="w-full mt-1 p-2 rounded border dark:bg-gray-600"
+                    className="input-card w-full mt-1"
                   />
                 </label>
               </div>
@@ -651,12 +679,12 @@ export default function SpadesGame() {
             (!currentRound.tricksComplete && currentRound.biddingComplete && 
              currentRound.team1Tricks + currentRound.team2Tricks !== 13)
           }
-          className={`w-full mt-6 py-2 px-4 rounded transition-colors ${
+          className={`button-card w-full mt-6 ${
             (currentRound.tricksComplete && !allNelloResultsSubmitted()) ||
             (!currentRound.tricksComplete && currentRound.biddingComplete && 
              currentRound.team1Tricks + currentRound.team2Tricks !== 13)
-              ? 'bg-gray-400 cursor-not-allowed'
-              : 'bg-blue-500 hover:bg-blue-600 text-white'
+              ? 'bg-gray-400 text-white'
+              : 'bg-blue-500 text-white'
           }`}
         >
           {!currentRound.biddingComplete ? "Submit Bids" :
@@ -665,13 +693,13 @@ export default function SpadesGame() {
         </button>
 
         {history.length > 0 && (
-          <div className="mt-8">
-            <h3 className="text-lg font-semibold mb-4">Round History</h3>
-            <div className="overflow-x-auto -mx-2 sm:mx-0">
+          <div className="card-style mt-8 overflow-hidden">
+            <h3 className="text-lg font-semibold p-4 border-b dark:border-gray-700">Round History</h3>
+            <div className="overflow-x-auto">
               <div className="inline-block min-w-full align-middle">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="bg-gray-100 dark:bg-gray-800 whitespace-nowrap">
+                    <tr className="bg-gray-50 dark:bg-gray-800 whitespace-nowrap">
                       <th className="p-2 text-xs sm:text-sm">Round</th>
                       <th className="p-2 text-xs sm:text-sm">{team1Score.player1Name}</th>
                       <th className="p-2 text-xs sm:text-sm">{team1Score.player2Name}</th>
@@ -685,28 +713,28 @@ export default function SpadesGame() {
                   </thead>
                   <tbody>
                     {history.map((round, index) => (
-                      <tr key={index} className="border-b dark:border-gray-700 whitespace-nowrap">
+                      <tr key={index} className="border-b dark:border-gray-700 whitespace-nowrap hover:bg-gray-50 dark:hover:bg-gray-800">
                         <td className="p-2 text-center text-xs sm:text-sm">{index + 1}</td>
                         <td className="p-2 text-center text-xs sm:text-sm">
                           {round.team1Player1.isNello 
-                            ? `Nil ${round.team1Player1.nelloSuccess ? '✓' : '✗'}` 
+                            ? `Nil ${round.team1Player1.nelloSuccess ? '♠' : '×'}` 
                             : round.team1Player1.bid}
                         </td>
                         <td className="p-2 text-center text-xs sm:text-sm">
                           {round.team1Player2.isNello 
-                            ? `Nil ${round.team1Player2.nelloSuccess ? '✓' : '✗'}` 
+                            ? `Nil ${round.team1Player2.nelloSuccess ? '♠' : '×'}` 
                             : round.team1Player2.bid}
                         </td>
                         <td className="p-2 text-center text-xs sm:text-sm">{round.team1Tricks}</td>
                         <td className="p-2 text-center text-xs sm:text-sm">{round.team1Bags}</td>
                         <td className="p-2 text-center text-xs sm:text-sm">
                           {round.team2Player1.isNello 
-                            ? `Nil ${round.team2Player1.nelloSuccess ? '✓' : '✗'}` 
+                            ? `Nil ${round.team2Player1.nelloSuccess ? '♠' : '×'}` 
                             : round.team2Player1.bid}
                         </td>
                         <td className="p-2 text-center text-xs sm:text-sm">
                           {round.team2Player2.isNello 
-                            ? `Nil ${round.team2Player2.nelloSuccess ? '✓' : '✗'}` 
+                            ? `Nil ${round.team2Player2.nelloSuccess ? '♠' : '×'}` 
                             : round.team2Player2.bid}
                         </td>
                         <td className="p-2 text-center text-xs sm:text-sm">{round.team2Tricks}</td>
@@ -725,22 +753,24 @@ export default function SpadesGame() {
       <div className="fixed bottom-4 left-4 z-[9999]">
         <button
           onClick={() => setShowRules(true)}
-          className="bg-blue-500 hover:bg-blue-600 text-white rounded-full w-14 h-14 sm:w-12 sm:h-12 flex items-center justify-center shadow-lg transition-colors"
+          className="button-card bg-blue-500 text-white rounded-full w-14 h-14 sm:w-12 sm:h-12 flex items-center justify-center shadow-lg p-2 sm:p-1.5"
           title="Game Rules"
           aria-label="Show Game Rules"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7 sm:h-6 sm:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
+          <img 
+            src="/assets/rule.png" 
+            alt="Rules"
+            className="w-full h-full object-contain"
+          />
         </button>
       </div>
 
       {/* Rules Modal */}
       {showRules && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-[9999] flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-lg w-full max-w-2xl max-h-[90vh] overflow-hidden shadow-xl">
-            <div className="sticky top-0 p-4 border-b dark:border-gray-700 flex justify-between items-center bg-white dark:bg-gray-800">
-              <h2 className="text-xl font-bold">Spades Rules</h2>
+          <div className="card-style spade-pattern w-full max-w-2xl max-h-[90vh] overflow-hidden">
+            <div className="sticky top-0 p-4 border-b dark:border-gray-700 flex justify-between items-center">
+              <h2 className="text-xl font-bold">♠ Spades Rules</h2>
               <button
                 onClick={() => setShowRules(false)}
                 className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"

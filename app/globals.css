@@ -8,17 +8,165 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  --card-bg: #ffffff;
+  --felt-bg: #35654d;
+  --card-border: #e2e2e2;
+  --card-shadow: rgba(0, 0, 0, 0.1);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
     --background: #0a0a0a;
     --foreground: #ededed;
+    --card-bg: #2d2d2d;
+    --felt-bg: #1a4031;
+    --card-border: #3d3d3d;
+    --card-shadow: rgba(0, 0, 0, 0.3);
   }
 }
 
 body {
   color: var(--foreground);
-  background: var(--background);
+  background: var(--felt-bg);
+  background-image: repeating-linear-gradient(
+    45deg,
+    rgba(255, 255, 255, 0.03) 0px,
+    rgba(255, 255, 255, 0.03) 2px,
+    transparent 2px,
+    transparent 4px
+  );
   font-family: Arial, Helvetica, sans-serif;
+  min-height: 100vh;
+}
+
+.card-style {
+  background-color: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 0.75rem;
+  box-shadow: 0 4px 6px var(--card-shadow);
+  position: relative;
+}
+
+.card-style::before {
+  content: '';
+  position: absolute;
+  top: 0.5rem;
+  left: 0.5rem;
+  right: 0.5rem;
+  bottom: 0.5rem;
+  border: 1px solid var(--card-border);
+  border-radius: 0.5rem;
+  pointer-events: none;
+  opacity: 0.5;
+}
+
+.spade-pattern {
+  position: relative;
+}
+
+.spade-pattern::before {
+  content: '♠';
+  position: absolute;
+  top: 0.5rem;
+  left: 0.5rem;
+  font-size: 1rem;
+  opacity: 0.1;
+}
+
+.spade-pattern::after {
+  content: '♠';
+  position: absolute;
+  bottom: 0.5rem;
+  right: 0.5rem;
+  font-size: 1rem;
+  opacity: 0.1;
+  transform: rotate(180deg);
+}
+
+.input-card {
+  background-color: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 0.5rem;
+  padding: 0.5rem;
+  transition: all 0.2s ease;
+}
+
+.input-card:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px #4f90f2;
+}
+
+.button-card {
+  @apply px-4 py-2 rounded-lg font-medium transition-all duration-200;
+  background-color: var(--card-bg);
+  border: 1px solid var(--card-border);
+}
+
+.button-card:not(:disabled) {
+  @apply cursor-pointer;
+}
+
+.button-card:disabled {
+  @apply opacity-50 cursor-not-allowed;
+}
+
+/* Default button */
+.button-card:not([class*="bg-"]) {
+  @apply text-gray-900 dark:text-white bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700;
+}
+
+/* Blue button */
+.button-card.bg-blue-500 {
+  @apply bg-blue-500 text-white border-blue-600 hover:bg-blue-600 focus:ring-2 focus:ring-blue-300;
+}
+
+/* Yellow button */
+.button-card.bg-yellow-500 {
+  @apply bg-yellow-500 text-white border-yellow-600 hover:bg-yellow-600 focus:ring-2 focus:ring-yellow-300;
+}
+
+/* Red button */
+.button-card.bg-red-500 {
+  @apply bg-red-500 text-white border-red-600 hover:bg-red-600 focus:ring-2 focus:ring-red-300;
+}
+
+/* Green button */
+.button-card.bg-green-500 {
+  @apply bg-green-500 text-white border-green-600 hover:bg-green-600 focus:ring-2 focus:ring-green-300;
+}
+
+/* Gray button */
+.button-card.bg-gray-400 {
+  @apply bg-gray-400 text-white border-gray-500;
+}
+
+.button-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px var(--card-shadow);
+}
+
+.button-card:active {
+  transform: translateY(0);
+}
+
+/* Card flip animation */
+.card-flip-enter {
+  transform: rotateY(0deg);
+}
+
+.card-flip-enter-active {
+  transform: rotateY(180deg);
+  transition: transform 0.3s ease;
+}
+
+/* Table texture */
+.table-texture {
+  background-color: var(--felt-bg);
+  background-image: 
+    linear-gradient(45deg, rgba(255, 255, 255, 0.05) 25%, transparent 25%),
+    linear-gradient(-45deg, rgba(255, 255, 255, 0.05) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, rgba(255, 255, 255, 0.05) 75%),
+    linear-gradient(-45deg, transparent 75%, rgba(255, 255, 255, 0.05) 75%);
+  background-size: 20px 20px;
+  background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
 }
