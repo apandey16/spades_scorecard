@@ -203,7 +203,19 @@ export default function SpadesGame() {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>, team: 1 | 2, player: 1 | 2, field: keyof Player) => {
     const playerKey = `team${team}Player${player}` as keyof Round;
-    const value = field === 'isNello' ? e.target.checked : Math.max(0, Math.min(13, parseInt(e.target.value) || 0));
+    let value: number | boolean;
+    
+    if (field === 'isNello') {
+      value = e.target.checked;
+    } else {
+      // For bid field: handle empty input and invalid numbers
+      const inputValue = e.target.value;
+      if (inputValue === '' || isNaN(parseInt(inputValue))) {
+        value = 0;
+      } else {
+        value = Math.max(0, Math.min(13, parseInt(inputValue)));
+      }
+    }
     
     setCurrentRound(prev => ({
       ...prev,
@@ -398,12 +410,14 @@ export default function SpadesGame() {
   const renderNelloConfirmation = (team: 1 | 2, player: 1 | 2) => {
     const playerKey = `team${team}Player${player}` as keyof Round;
     const playerData = currentRound[playerKey] as Player;
+    const teamScore = team === 1 ? team1Score : team2Score;
+    const playerName = player === 1 ? teamScore.player1Name : teamScore.player2Name;
 
     if (!playerData.isNello) return null;
 
     return (
       <div className="mb-4">
-        <h5 className="font-semibold mb-2">Team {team} - Player {player} Nello Result:</h5>
+        <h5 className="font-semibold mb-2">{playerName} Nello Result:</h5>
         <div className="flex gap-2">
           <button
             onClick={() => handleNelloResult(team, player, true)}
@@ -442,7 +456,9 @@ export default function SpadesGame() {
         <label className="block mb-2">
           Bid:
           <input
-            type="number"
+            type="text"
+            pattern="[0-9]*"
+            inputMode="numeric"
             min="0"
             max="13"
             value={playerData.bid}
@@ -661,6 +677,109 @@ export default function SpadesGame() {
     return totalBags;
   };
 
+  const calculatePreviewScores = () => {
+    const newTeam1Score = calculateTeamScore(
+      [currentRound.team1Player1, currentRound.team1Player2],
+      currentRound.team1Tricks,
+      team1Score
+    );
+    const newTeam2Score = calculateTeamScore(
+      [currentRound.team2Player1, currentRound.team2Player2],
+      currentRound.team2Tricks,
+      team2Score
+    );
+
+    return { newTeam1Score, newTeam2Score };
+  };
+
+  const renderScorePreview = () => {
+    const { newTeam1Score, newTeam2Score } = calculatePreviewScores();
+    const team1PointChange = newTeam1Score.score - team1Score.score;
+    const team2PointChange = newTeam2Score.score - team2Score.score;
+
+    return (
+      <div className="card-style spade-pattern p-6 my-8">
+        <h3 className="text-2xl font-bold mb-6">Score Preview</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
+          {/* Team 1 */}
+          <div className="card-style p-4">
+            <h4 className="text-xl font-semibold mb-4">{team1Score.name}</h4>
+            <div className="space-y-3">
+              <div className="flex items-center gap-3 text-lg">
+                <span>Points: {team1Score.score}</span>
+                <span className="text-gray-500">→</span>
+                <span className={`font-medium ${team1PointChange >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                  {newTeam1Score.score} ({team1PointChange >= 0 ? '+' : ''}{team1PointChange})
+                </span>
+              </div>
+              <div className="flex items-center gap-3 text-lg">
+                <span>Bags: {team1Score.bags}</span>
+                <span className="text-gray-500">→</span>
+                <span className="font-medium">{newTeam1Score.bags}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Team 2 */}
+          <div className="card-style p-4">
+            <h4 className="text-xl font-semibold mb-4">{team2Score.name}</h4>
+            <div className="space-y-3">
+              <div className="flex items-center gap-3 text-lg">
+                <span>Points: {team2Score.score}</span>
+                <span className="text-gray-500">→</span>
+                <span className={`font-medium ${team2PointChange >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                  {newTeam2Score.score} ({team2PointChange >= 0 ? '+' : ''}{team2PointChange})
+                </span>
+              </div>
+              <div className="flex items-center gap-3 text-lg">
+                <span>Bags: {team2Score.bags}</span>
+                <span className="text-gray-500">→</span>
+                <span className="font-medium">{newTeam2Score.bags}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Round Details */}
+        <div className="mt-8">
+          <h4 className="text-xl font-semibold mb-4">Round Details</h4>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
+            <div className="card-style p-4">
+              <div className="space-y-3">
+                <p className="text-lg">{team1Score.player1Name}: {currentRound.team1Player1.isNello ? 'Nello' : currentRound.team1Player1.bid}</p>
+                <p className="text-lg">{team1Score.player2Name}: {currentRound.team1Player2.isNello ? 'Nello' : currentRound.team1Player2.bid}</p>
+                <p className="text-lg font-medium mt-4">Tricks: {currentRound.team1Tricks}</p>
+              </div>
+            </div>
+            <div className="card-style p-4">
+              <div className="space-y-3">
+                <p className="text-lg">{team2Score.player1Name}: {currentRound.team2Player1.isNello ? 'Nello' : currentRound.team2Player1.bid}</p>
+                <p className="text-lg">{team2Score.player2Name}: {currentRound.team2Player2.isNello ? 'Nello' : currentRound.team2Player2.bid}</p>
+                <p className="text-lg font-medium mt-4">Tricks: {currentRound.team2Tricks}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Edit Button */}
+        <div className="mt-8 flex justify-end">
+          <button
+            onClick={() => {
+              setCurrentRound(prev => ({ 
+                ...prev, 
+                tricksComplete: false,
+                biddingComplete: false
+              }));
+            }}
+            className="button-card bg-blue-500 text-white px-6 py-2 text-lg"
+          >
+            Edit Bids & Tricks
+          </button>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <>
       <div className="w-full max-w-6xl mx-auto p-2 sm:p-4">
@@ -731,7 +850,9 @@ export default function SpadesGame() {
                 <label className="block">
                   <span className="text-sm">Tricks Won:</span>
                   <input
-                    type="number"
+                    type="text"
+                    pattern="[0-9]*"
+                    inputMode="numeric"
                     min="0"
                     max="13"
                     value={currentRound.team1Tricks}
@@ -766,7 +887,9 @@ export default function SpadesGame() {
                 <label className="block">
                   <span className="text-sm">Tricks Won:</span>
                   <input
-                    type="number"
+                    type="text"
+                    pattern="[0-9]*"
+                    inputMode="numeric"
                     min="0"
                     max="13"
                     value={currentRound.team2Tricks}
@@ -783,6 +906,8 @@ export default function SpadesGame() {
             )}
           </div>
         </div>
+
+        {currentRound.tricksComplete && renderScorePreview()}
 
         {!currentRound.tricksComplete && currentRound.biddingComplete && (
           <div className="text-center text-sm mt-4">
@@ -854,7 +979,9 @@ export default function SpadesGame() {
                             {isEditing ? (
                               <div className="flex flex-col gap-1">
                                 <input
-                                  type="number"
+                                  type="text"
+                                  pattern="[0-9]*"
+                                  inputMode="numeric"
                                   min="0"
                                   max="13"
                                   value={currentRound.team1Player1.bid}
@@ -892,7 +1019,9 @@ export default function SpadesGame() {
                             {isEditing ? (
                               <div className="flex flex-col gap-1">
                                 <input
-                                  type="number"
+                                  type="text"
+                                  pattern="[0-9]*"
+                                  inputMode="numeric"
                                   min="0"
                                   max="13"
                                   value={currentRound.team1Player2.bid}
@@ -929,7 +1058,9 @@ export default function SpadesGame() {
                           <td className="p-2 text-center text-xs sm:text-sm">
                             {isEditing ? (
                               <input
-                                type="number"
+                                type="text"
+                                pattern="[0-9]*"
+                                inputMode="numeric"
                                 min="0"
                                 max="13"
                                 value={currentRound.team1Tricks}
@@ -947,7 +1078,9 @@ export default function SpadesGame() {
                             {isEditing ? (
                               <div className="flex flex-col gap-1">
                                 <input
-                                  type="number"
+                                  type="text"
+                                  pattern="[0-9]*"
+                                  inputMode="numeric"
                                   min="0"
                                   max="13"
                                   value={currentRound.team2Player1.bid}
@@ -985,7 +1118,9 @@ export default function SpadesGame() {
                             {isEditing ? (
                               <div className="flex flex-col gap-1">
                                 <input
-                                  type="number"
+                                  type="text"
+                                  pattern="[0-9]*"
+                                  inputMode="numeric"
                                   min="0"
                                   max="13"
                                   value={currentRound.team2Player2.bid}
@@ -1022,7 +1157,9 @@ export default function SpadesGame() {
                           <td className="p-2 text-center text-xs sm:text-sm">
                             {isEditing ? (
                               <input
-                                type="number"
+                                type="text"
+                                pattern="[0-9]*"
+                                inputMode="numeric"
                                 min="0"
                                 max="13"
                                 value={currentRound.team2Tricks}
