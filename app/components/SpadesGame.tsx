@@ -8,6 +8,7 @@ interface TeamScore {
   name: string;
   player1Name: string;
   player2Name: string;
+  penalizedYellowCards: number;  // Track how many yellow cards have already been penalized
 }
 
 interface Player {
@@ -26,8 +27,11 @@ interface Round {
   team2Tricks: number;
   team1Bags: number;
   team2Bags: number;
+  team1YellowCards: number;
+  team2YellowCards: number;
   biddingComplete: boolean;
   tricksComplete: boolean;
+  yellowCardsComplete: boolean;
 }
 
 const initialPlayerState: Player = {
@@ -45,18 +49,18 @@ const initialRoundState: Round = {
   team2Tricks: 0,
   team1Bags: 0,
   team2Bags: 0,
+  team1YellowCards: 0,
+  team2YellowCards: 0,
   biddingComplete: false,
   tricksComplete: false,
+  yellowCardsComplete: false,
 };
 
-const GAME_RULES = `General Rules: 
+const getGameRules = (isShortGame: boolean, isTournamentRules: boolean, isFinalsGame: boolean) => {
+  const baseRules = `General Rules: 
 - The spade suit is always trump.
 - A (high), K, Q, J, 10, 9, 8, 7, 6, 5, 4, 3, 2.
 - There are 4 people per game and it is played in teams of 2.
-
-Object of the Game:
-To reach the predefined points total.
-Five hundred points is common, but 250 points is suitable for a short game.
 
 The Deal:
 The first dealer is chosen by a draw for high card, and thereafter the turn to deal proceeds clockwise. The entire deck is dealt one at a time, face down, beginning on the dealer's left. The players then pick up their cards and arrange them by suits and rank.
@@ -65,18 +69,94 @@ The Bidding:
 Each player decides how many tricks (or hands) they will be able to win and the total number of tricks that need to be won by the team is the sum of what each player bid. The player to the dealer's left starts the bidding and, in turn, each player states how many tricks they expect to win. Any player can call 'nello' which implies that they are bidding 0 wins. The total number of tricks between all 4 players must be less than or equal to 13.
 
 The Play:
-The player on the dealer's left makes the opening lead, and players must follow suit, if possible. If a player cannot follow suit, they may play a trump or discard. The trick is won by the player who plays the highest trump or if no trump was played, the player who played the highest card in the suit led. The player who wins the trick leads next. Play continues until none of the players have any cards left. Each hand is worth 13 tricks. Spades cannot be led unless played previously or player to lead has nothing but Spades in their hand.
+The player on the dealer's left makes the opening lead, and players must follow suit, if possible. If a player cannot follow suit, they may play a trump or discard. The trick is won by the player who plays the highest trump or if no trump was played, the player who played the highest card in the suit led. The player who wins the trick leads next. Play continues until none of the players have any cards left. Each hand is worth 13 tricks. Spades cannot be led unless played previously or player to lead has nothing but Spades in their hand.`;
+
+  if (isTournamentRules) {
+    if (isFinalsGame) {
+      return `${baseRules}
+
+Object of the Game:
+To reach 500 points in tournament finals.
 
 How to Keep Score:
 The game is scored as a team. If one person on the team bids 3 tricks and the other bids 4 tricks, the team as a whole needs to win seven tricks to make the contract.
 
-For making the contract (the number of tricks bid), the team scores 10 points for each trick bid. If a player called 'nello' and successfully didn't win a single trick, they gained 100 points, otherwise they lose 100 points. For each overtrick won, the team recives a 'bag' and a deduction of 100 points is made every time a team accumulates 10 bags throughout the game. Thus, the object is always to fulfill the bid exactly.
+For making the contract (the number of tricks bid), the team scores 10 points for each trick bid. If a player called 'nello' and successfully didn't win a single trick, they gained 100 points, otherwise they lose 100 points. For each overtrick won, the team receives a 'bag' and a deduction of 100 points is made every time a team accumulates 10 bags throughout the game. Thus, the object is always to fulfill the bid exactly.
 
 When a team is behind by 250 points or more, their players have the option to call a 'blind nello'. A blind nello is worth 200 points if successful (no tricks won) but also loses 200 points if failed (any tricks won). This provides a strategic comeback mechanism for teams that are significantly behind.
+
+Tournament Finals Special Rules:
+- Games go to 500 points
+- Every 10 bags result in a -100 point penalty
+- Total bags are tracked for tiebreakers (each bag = 1 point)
+- Blind nellos are allowed when a team is 250+ points behind
 
 For example, if the team's bid is Seven and they make seven tricks, the score would be 70. If the bid was Five and the team won eight tricks, the score would be 50 points: 50 points for the bid, and 3 bags for the three overtricks.
 
 If the team "breaks contract," that is, if they take fewer than the number of tricks bid, they lose the amount that was bid. For example, if a player bids Four and wins only three tricks, -40 points are awarded.`;
+    } else {
+      return `${baseRules}
+
+Object of the Game:
+To reach 250 points or complete 8 rounds in tournament play.
+
+How to Keep Score:
+The game is scored as a team. If one person on the team bids 3 tricks and the other bids 4 tricks, the team as a whole needs to win seven tricks to make the contract.
+
+For making the contract (the number of tricks bid), the team scores 10 points for each trick bid. If a player called 'nello' and successfully didn't win a single trick, they gained 100 points, otherwise they lose 100 points. For each overtrick won, the team receives a 'bag' and a deduction of 50 points is made every time a team accumulates 5 bags throughout the game. Thus, the object is always to fulfill the bid exactly.
+
+Tournament Regular Game Special Rules:
+- Games end at 250 points or after 8 rounds
+- Every 5 bags result in a -50 point penalty
+- Total bags are tracked for tiebreakers (each bag = 1 point)
+- Blind nellos are not allowed in regular tournament games
+
+For example, if the team's bid is Seven and they make seven tricks, the score would be 70. If the bid was Five and the team won eight tricks, the score would be 50 points: 50 points for the bid, and 3 bags for the three overtricks.
+
+If the team "breaks contract," that is, if they take fewer than the number of tricks bid, they lose the amount that was bid. For example, if a player bids Four and wins only three tricks, -40 points are awarded.`;
+    }
+  } else if (isShortGame) {
+    return `${baseRules}
+
+Object of the Game:
+To reach 250 points in a short game.
+
+How to Keep Score:
+The game is scored as a team. If one person on the team bids 3 tricks and the other bids 4 tricks, the team as a whole needs to win seven tricks to make the contract.
+
+For making the contract (the number of tricks bid), the team scores 10 points for each trick bid. If a player called 'nello' and successfully didn't win a single trick, they gained 100 points, otherwise they lose 100 points. For each overtrick won, the team receives a 'bag' and a deduction of 50 points is made every time a team accumulates 5 bags throughout the game. Thus, the object is always to fulfill the bid exactly.
+
+When a team is behind by 250 points or more, their players have the option to call a 'blind nello'. A blind nello is worth 200 points if successful (no tricks won) but also loses 200 points if failed (any tricks won). This provides a strategic comeback mechanism for teams that are significantly behind.
+
+Short Game Special Rules:
+- Games go to 250 points
+- Every 5 bags result in a -50 point penalty
+
+For example, if the team's bid is Seven and they make seven tricks, the score would be 70. If the bid was Five and the team won eight tricks, the score would be 50 points: 50 points for the bid, and 3 bags for the three overtricks.
+
+If the team "breaks contract," that is, if they take fewer than the number of tricks bid, they lose the amount that was bid. For example, if a player bids Four and wins only three tricks, -40 points are awarded.`;
+  } else {
+    return `${baseRules}
+
+Object of the Game:
+To reach 500 points in a regular game.
+
+How to Keep Score:
+The game is scored as a team. If one person on the team bids 3 tricks and the other bids 4 tricks, the team as a whole needs to win seven tricks to make the contract.
+
+For making the contract (the number of tricks bid), the team scores 10 points for each trick bid. If a player called 'nello' and successfully didn't win a single trick, they gained 100 points, otherwise they lose 100 points. For each overtrick won, the team receives a 'bag' and a deduction of 100 points is made every time a team accumulates 10 bags throughout the game. Thus, the object is always to fulfill the bid exactly.
+
+When a team is behind by 250 points or more, their players have the option to call a 'blind nello'. A blind nello is worth 200 points if successful (no tricks won) but also loses 200 points if failed (any tricks won). This provides a strategic comeback mechanism for teams that are significantly behind.
+
+Regular Game Special Rules:
+- Games go to 500 points
+- Every 10 bags result in a -100 point penalty
+
+For example, if the team's bid is Seven and they make seven tricks, the score would be 70. If the bid was Five and the team won eight tricks, the score would be 50 points: 50 points for the bid, and 3 bags for the three overtricks.
+
+If the team "breaks contract," that is, if they take fewer than the number of tricks bid, they lose the amount that was bid. For example, if a player bids Four and wins only three tricks, -40 points are awarded.`;
+  }
+};
 
 // Add this type before the component
 type HistoryEditField = 
@@ -92,7 +172,8 @@ export default function SpadesGame() {
     bags: 0, 
     name: "Team 1",
     player1Name: "Player 1",
-    player2Name: "Player 2"
+    player2Name: "Player 2",
+    penalizedYellowCards: 0
   });
   
   const [team2Score, setTeam2Score] = useState<TeamScore>({ 
@@ -100,7 +181,8 @@ export default function SpadesGame() {
     bags: 0,
     name: "Team 2",
     player1Name: "Player 1",
-    player2Name: "Player 2"
+    player2Name: "Player 2",
+    penalizedYellowCards: 0
   });
   
   const [currentRound, setCurrentRound] = useState<Round>(initialRoundState);
@@ -128,13 +210,33 @@ export default function SpadesGame() {
         const savedHistory = localStorage.getItem('history');
         const savedIsEditing = localStorage.getItem('isEditing');
         const savedIsShortGame = localStorage.getItem('isShortGame');
-
-        if (savedTeam1Score) setTeam1Score(JSON.parse(savedTeam1Score));
-        if (savedTeam2Score) setTeam2Score(JSON.parse(savedTeam2Score));
+        const savedIsTournamentRules = localStorage.getItem('isTournamentRules');
+        const savedIsFinalsGame = localStorage.getItem('isFinalsGame');
+        
+        if (savedTeam1Score) {
+          const parsedTeam1Score = JSON.parse(savedTeam1Score);
+          // Ensure the penalizedYellowCards property exists
+          if (parsedTeam1Score.penalizedYellowCards === undefined) {
+            parsedTeam1Score.penalizedYellowCards = 0;
+          }
+          setTeam1Score(parsedTeam1Score);
+        }
+        
+        if (savedTeam2Score) {
+          const parsedTeam2Score = JSON.parse(savedTeam2Score);
+          // Ensure the penalizedYellowCards property exists
+          if (parsedTeam2Score.penalizedYellowCards === undefined) {
+            parsedTeam2Score.penalizedYellowCards = 0;
+          }
+          setTeam2Score(parsedTeam2Score);
+        }
+        
         if (savedCurrentRound) setCurrentRound(JSON.parse(savedCurrentRound));
         if (savedHistory) setHistory(JSON.parse(savedHistory));
         if (savedIsEditing) setIsEditing(JSON.parse(savedIsEditing));
         if (savedIsShortGame) setIsShortGame(JSON.parse(savedIsShortGame));
+        if (savedIsTournamentRules) setIsTournamentRules(JSON.parse(savedIsTournamentRules));
+        if (savedIsFinalsGame) setIsFinalsGame(JSON.parse(savedIsFinalsGame));
       } catch (error) {
         console.error('Error loading from localStorage:', error);
       }
@@ -168,7 +270,9 @@ export default function SpadesGame() {
   const calculateTeamScore = (
     players: Player[], 
     tricks: number, 
-    currentScore: TeamScore
+    currentScore: TeamScore,
+    yellowCards: number,
+    isFinalCalculation: boolean = false  // Flag to indicate if this is the final calculation for the round
   ) => {
     let newScore = { ...currentScore };
     let totalBid = 0;
@@ -194,6 +298,52 @@ export default function SpadesGame() {
     }
 
     newScore.bags += totalBags;
+    
+    // Apply yellow card penalties based on current round or total accumulated
+    if (isFinalCalculation) {
+      // For final round calculation:
+      // 1. Calculate total yellow cards including this round
+      let totalYellowCards = yellowCards;
+      if (players[0] === currentRound.team1Player1 || players[1] === currentRound.team1Player2) {
+        // Team 1
+        totalYellowCards = history.reduce((sum, round) => sum + (round.team1YellowCards || 0), 0) + yellowCards;
+      } else {
+        // Team 2
+        totalYellowCards = history.reduce((sum, round) => sum + (round.team2YellowCards || 0), 0) + yellowCards;
+      }
+      
+      // 2. Calculate how many new penalties to apply
+      const totalPenaltiesEarned = Math.floor(totalYellowCards / 2);
+      const previouslyPenalized = Math.floor(newScore.penalizedYellowCards / 2);
+      const newPenalties = totalPenaltiesEarned - previouslyPenalized;
+      
+      // 3. Only apply new penalties
+      if (newPenalties > 0) {
+        newScore.score -= newPenalties * 50;
+      }
+      
+      // 4. Update the penalized yellow cards count
+      newScore.penalizedYellowCards = totalYellowCards;
+    } else {
+      // For preview calculation, calculate what the penalty would be
+      // based on total accumulated yellow cards
+      let totalYellowCards = yellowCards;
+      if (players[0] === currentRound.team1Player1 || players[1] === currentRound.team1Player2) {
+        // Team 1
+        totalYellowCards = history.reduce((sum, round) => sum + (round.team1YellowCards || 0), 0) + yellowCards;
+      } else {
+        // Team 2
+        totalYellowCards = history.reduce((sum, round) => sum + (round.team2YellowCards || 0), 0) + yellowCards;
+      }
+      
+      const totalPenaltiesEarned = Math.floor(totalYellowCards / 2);
+      const previouslyPenalized = Math.floor(newScore.penalizedYellowCards / 2);
+      const newPenalties = totalPenaltiesEarned - previouslyPenalized;
+      
+      if (newPenalties > 0) {
+        newScore.score -= newPenalties * 50;
+      }
+    }
     
     // Check for bag penalty based on game type
     if (isTournamentRules) {
@@ -333,16 +483,25 @@ export default function SpadesGame() {
   };
 
   const finalizeRound = () => {
+    if (!currentRound.yellowCardsComplete) {
+      alert("Please complete the Yellow Card Check first!");
+      return;
+    }
+
     // Calculate new scores first to show in confirmation
     const newTeam1Score = calculateTeamScore(
       [currentRound.team1Player1, currentRound.team1Player2],
       currentRound.team1Tricks,
-      team1Score
+      team1Score,
+      currentRound.team1YellowCards || 0,
+      true  // This is the final calculation
     );
     const newTeam2Score = calculateTeamScore(
       [currentRound.team2Player1, currentRound.team2Player2],
       currentRound.team2Tricks,
-      team2Score
+      team2Score,
+      currentRound.team2YellowCards || 0,
+      true  // This is the final calculation
     );
 
     // Calculate point changes
@@ -353,7 +512,20 @@ export default function SpadesGame() {
     const newTotalBagsTeam1 = totalBagsTeam1 + currentRound.team1Bags;
     const newTotalBagsTeam2 = totalBagsTeam2 + currentRound.team2Bags;
 
-    const confirmMessage = `Round Summary:\n\n${team1Score.name}:\nPoints: ${team1Score.score} → ${newTeam1Score.score} (${team1PointChange >= 0 ? '+' : ''}${team1PointChange})\nBags: ${team1Score.bags} → ${newTeam1Score.bags}\nTotal Bags: ${newTotalBagsTeam1}\n\n${team2Score.name}:\nPoints: ${team2Score.score} → ${newTeam2Score.score} (${team2PointChange >= 0 ? '+' : ''}${team2PointChange})\nBags: ${team2Score.bags} → ${newTeam2Score.bags}\nTotal Bags: ${newTotalBagsTeam2}\n\nConfirm to finalize round?`;
+    // Calculate total yellow cards
+    const totalTeam1YellowCards = history.reduce((sum, round) => sum + (round.team1YellowCards || 0), 0) + (currentRound.team1YellowCards || 0);
+    const totalTeam2YellowCards = history.reduce((sum, round) => sum + (round.team2YellowCards || 0), 0) + (currentRound.team2YellowCards || 0);
+
+    // Calculate new yellow card penalties
+    const team1TotalPenalties = Math.floor(totalTeam1YellowCards / 2);
+    const team1PreviousPenalties = Math.floor(team1Score.penalizedYellowCards / 2);
+    const team1NewPenalties = team1TotalPenalties - team1PreviousPenalties;
+    
+    const team2TotalPenalties = Math.floor(totalTeam2YellowCards / 2);
+    const team2PreviousPenalties = Math.floor(team2Score.penalizedYellowCards / 2);
+    const team2NewPenalties = team2TotalPenalties - team2PreviousPenalties;
+
+    const confirmMessage = `Round Summary:\n\n${team1Score.name}:\nPoints: ${team1Score.score} → ${newTeam1Score.score} (${team1PointChange >= 0 ? '+' : ''}${team1PointChange})\nBags: ${team1Score.bags} → ${newTeam1Score.bags}\nTotal Bags: ${newTotalBagsTeam1}\nYellow Cards This Round: ${currentRound.team1YellowCards || 0}\nTotal Yellow Cards: ${totalTeam1YellowCards}\nNew Yellow Card Penalty: ${team1NewPenalties > 0 ? `-${team1NewPenalties * 50}` : '0'} points\n\n${team2Score.name}:\nPoints: ${team2Score.score} → ${newTeam2Score.score} (${team2PointChange >= 0 ? '+' : ''}${team2PointChange})\nBags: ${team2Score.bags} → ${newTeam2Score.bags}\nTotal Bags: ${newTotalBagsTeam2}\nYellow Cards This Round: ${currentRound.team2YellowCards || 0}\nTotal Yellow Cards: ${totalTeam2YellowCards}\nNew Yellow Card Penalty: ${team2NewPenalties > 0 ? `-${team2NewPenalties * 50}` : '0'} points\n\nConfirm to finalize round?`;
 
     if (window.confirm(confirmMessage)) {
       setTeam1Score(newTeam1Score);
@@ -574,12 +746,14 @@ export default function SpadesGame() {
       const newTeam1Score = { 
         ...team1Score, 
         score: 0,
-        bags: 0
+        bags: 0,
+        penalizedYellowCards: 0
       };
       const newTeam2Score = { 
         ...team2Score, 
         score: 0,
-        bags: 0
+        bags: 0,
+        penalizedYellowCards: 0
       };
       
       setTeam1Score(newTeam1Score);
@@ -595,30 +769,32 @@ export default function SpadesGame() {
   };
 
   const resetEverything = () => {
-    if (window.confirm('Are you sure you want to reset everything? This will clear all data including team names and player names.')) {
-      const initialTeam1Score = { 
+    if (window.confirm('Are you sure you want to reset EVERYTHING? All scores, history, team names, and player names will be cleared.')) {
+      const newTeam1Score = { 
         score: 0, 
         bags: 0, 
         name: "Team 1",
         player1Name: "Player 1",
-        player2Name: "Player 2"
+        player2Name: "Player 2",
+        penalizedYellowCards: 0
       };
-      const initialTeam2Score = { 
+      const newTeam2Score = { 
         score: 0, 
         bags: 0,
         name: "Team 2",
         player1Name: "Player 1",
-        player2Name: "Player 2"
+        player2Name: "Player 2",
+        penalizedYellowCards: 0
       };
       
-      setTeam1Score(initialTeam1Score);
-      setTeam2Score(initialTeam2Score);
+      setTeam1Score(newTeam1Score);
+      setTeam2Score(newTeam2Score);
       setCurrentRound(initialRoundState);
       setHistory([]);
       setIsEditing(false);
       
-      localStorage.setItem('team1Score', JSON.stringify(initialTeam1Score));
-      localStorage.setItem('team2Score', JSON.stringify(initialTeam2Score));
+      localStorage.setItem('team1Score', JSON.stringify(newTeam1Score));
+      localStorage.setItem('team2Score', JSON.stringify(newTeam2Score));
       localStorage.setItem('currentRound', JSON.stringify(initialRoundState));
       localStorage.setItem('history', JSON.stringify([]));
       localStorage.setItem('isEditing', JSON.stringify(false));
@@ -708,13 +884,15 @@ export default function SpadesGame() {
       newTeam1Score = calculateTeamScore(
         [round.team1Player1, round.team1Player2],
         round.team1Tricks,
-        newTeam1Score
+        newTeam1Score,
+        round.team1YellowCards
       );
       
       newTeam2Score = calculateTeamScore(
         [round.team2Player1, round.team2Player2],
         round.team2Tricks,
-        newTeam2Score
+        newTeam2Score,
+        round.team2YellowCards
       );
     }
 
@@ -754,16 +932,28 @@ export default function SpadesGame() {
     return totalBags;
   };
 
+  const calculateCumulativeYellowCards = (roundIndex: number, team: 1 | 2) => {
+    let yellowCards = 0;
+    for (let i = 0; i <= roundIndex; i++) {
+      yellowCards += history[i][`team${team}YellowCards`] || 0;
+    }
+    return yellowCards;
+  };
+
   const calculatePreviewScores = () => {
     const newTeam1Score = calculateTeamScore(
       [currentRound.team1Player1, currentRound.team1Player2],
       currentRound.team1Tricks,
-      team1Score
+      team1Score,
+      currentRound.team1YellowCards || 0,
+      false  // This is just a preview, not the final calculation
     );
     const newTeam2Score = calculateTeamScore(
       [currentRound.team2Player1, currentRound.team2Player2],
       currentRound.team2Tricks,
-      team2Score
+      team2Score,
+      currentRound.team2YellowCards || 0,
+      false  // This is just a preview, not the final calculation
     );
 
     return { newTeam1Score, newTeam2Score };
@@ -774,85 +964,172 @@ export default function SpadesGame() {
     const team1PointChange = newTeam1Score.score - team1Score.score;
     const team2PointChange = newTeam2Score.score - team2Score.score;
 
+    // Calculate total yellow cards including current round
+    const totalTeam1YellowCards = history.reduce((sum, round) => sum + (round.team1YellowCards || 0), 0) + (currentRound.team1YellowCards || 0);
+    const totalTeam2YellowCards = history.reduce((sum, round) => sum + (round.team2YellowCards || 0), 0) + (currentRound.team2YellowCards || 0);
+
+    // Calculate how many new penalties each team will receive
+    const team1TotalPenalties = Math.floor(totalTeam1YellowCards / 2);
+    const team1PreviousPenalties = Math.floor(team1Score.penalizedYellowCards / 2);
+    const team1NewPenalties = team1TotalPenalties - team1PreviousPenalties;
+    
+    const team2TotalPenalties = Math.floor(totalTeam2YellowCards / 2);
+    const team2PreviousPenalties = Math.floor(team2Score.penalizedYellowCards / 2);
+    const team2NewPenalties = team2TotalPenalties - team2PreviousPenalties;
+
     return (
       <div className="card-style spade-pattern p-4 my-4">
-        <h3 className="text-xl font-bold mb-4">Score Preview</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {/* Team 1 */}
+        <h3 className="text-xl font-bold mb-4">Yellow Card Check</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+          {/* Team 1 Yellow Cards */}
           <div className="card-style p-4">
             <h4 className="text-xl font-semibold mb-4">{team1Score.name}</h4>
             <div className="space-y-3">
-              <div className="flex items-center gap-3 text-lg">
-                <span>Points: {team1Score.score}</span>
-                <span className="text-gray-500">→</span>
-                <span className={`font-medium ${team1PointChange >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                  {newTeam1Score.score} ({team1PointChange >= 0 ? '+' : ''}{team1PointChange})
-                </span>
-              </div>
-              <div className="flex items-center gap-3 text-lg">
-                <span>Bags: {team1Score.bags}</span>
-                <span className="text-gray-500">→</span>
-                <span className="font-medium">{newTeam1Score.bags}</span>
-              </div>
+              <label className="block">
+                <span className="text-sm">Current Round Table Talk / Misplays:</span>
+                <input
+                  type="number"
+                  min="0"
+                  value={currentRound.team1YellowCards || 0}
+                  onChange={(e) => setCurrentRound(prev => ({
+                    ...prev,
+                    team1YellowCards: Math.max(0, parseInt(e.target.value) || 0)
+                  }))}
+                  className="w-full mt-1 p-2 rounded border"
+                />
+              </label>
+              <p className="text-sm font-medium">
+                Total Yellow Cards: {totalTeam1YellowCards}
+              </p>
+              <p className="text-sm font-medium">
+                Previously Penalized: {team1Score.penalizedYellowCards} cards ({team1PreviousPenalties} sets)
+              </p>
+              <p className="text-sm text-yellow-600">
+                New Penalty: -{team1NewPenalties * 50} points ({team1NewPenalties} new sets)
+              </p>
             </div>
           </div>
 
-          {/* Team 2 */}
+          {/* Team 2 Yellow Cards */}
           <div className="card-style p-4">
             <h4 className="text-xl font-semibold mb-4">{team2Score.name}</h4>
             <div className="space-y-3">
-              <div className="flex items-center gap-3 text-lg">
-                <span>Points: {team2Score.score}</span>
-                <span className="text-gray-500">→</span>
-                <span className={`font-medium ${team2PointChange >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                  {newTeam2Score.score} ({team2PointChange >= 0 ? '+' : ''}{team2PointChange})
-                </span>
-              </div>
-              <div className="flex items-center gap-3 text-lg">
-                <span>Bags: {team2Score.bags}</span>
-                <span className="text-gray-500">→</span>
-                <span className="font-medium">{newTeam2Score.bags}</span>
-              </div>
+              <label className="block">
+                <span className="text-sm">Current Round Table Talk / Misplays:</span>
+                <input
+                  type="number"
+                  min="0"
+                  value={currentRound.team2YellowCards || 0}
+                  onChange={(e) => setCurrentRound(prev => ({
+                    ...prev,
+                    team2YellowCards: Math.max(0, parseInt(e.target.value) || 0)
+                  }))}
+                  className="w-full mt-1 p-2 rounded border"
+                />
+              </label>
+              <p className="text-sm font-medium">
+                Total Yellow Cards: {totalTeam2YellowCards}
+              </p>
+              <p className="text-sm font-medium">
+                Previously Penalized: {team2Score.penalizedYellowCards} cards ({team2PreviousPenalties} sets)
+              </p>
+              <p className="text-sm text-yellow-600">
+                New Penalty: -{team2NewPenalties * 50} points ({team2NewPenalties} new sets)
+              </p>
             </div>
           </div>
         </div>
 
-        {/* Round Details */}
-        <div className="mt-8">
-          <h4 className="text-xl font-semibold mb-4">Round Details</h4>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
-            <div className="card-style p-4">
-              <div className="space-y-3">
-                <p className="text-lg">{team1Score.player1Name}: {currentRound.team1Player1.isNello ? 'Nello' : currentRound.team1Player1.bid}</p>
-                <p className="text-lg">{team1Score.player2Name}: {currentRound.team1Player2.isNello ? 'Nello' : currentRound.team1Player2.bid}</p>
-                <p className="text-lg font-medium mt-4">Tricks: {currentRound.team1Tricks}</p>
-              </div>
-            </div>
-            <div className="card-style p-4">
-              <div className="space-y-3">
-                <p className="text-lg">{team2Score.player1Name}: {currentRound.team2Player1.isNello ? 'Nello' : currentRound.team2Player1.bid}</p>
-                <p className="text-lg">{team2Score.player2Name}: {currentRound.team2Player2.isNello ? 'Nello' : currentRound.team2Player2.bid}</p>
-                <p className="text-lg font-medium mt-4">Tricks: {currentRound.team2Tricks}</p>
-              </div>
-            </div>
-          </div>
-        </div>
+        <button
+          onClick={() => setCurrentRound(prev => ({ ...prev, yellowCardsComplete: true }))}
+          className="button-card bg-blue-500 text-white w-full py-2"
+        >
+          Confirm Yellow Cards
+        </button>
 
-        {/* Edit Button */}
-        <div className="mt-8 flex justify-end">
-          <button
-            onClick={() => {
-              setCurrentRound(prev => ({ 
-                ...prev, 
-                tricksComplete: false,
-                biddingComplete: false
-              }));
-            }}
-            className="button-card bg-blue-500 text-white px-6 py-2 text-lg"
-          >
-            Edit Bids & Tricks
-          </button>
-        </div>
+        {currentRound.yellowCardsComplete && (
+          <>
+            <h3 className="text-xl font-bold mb-4 mt-8">Score Preview</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Team 1 */}
+              <div className="card-style p-4">
+                <h4 className="text-xl font-semibold mb-4">{team1Score.name}</h4>
+                <div className="space-y-3">
+                  <div className="flex items-center gap-3 text-lg">
+                    <span>Points: {team1Score.score}</span>
+                    <span className="text-gray-500">→</span>
+                    <span className={`font-medium ${team1PointChange >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                      {newTeam1Score.score} ({team1PointChange >= 0 ? '+' : ''}{team1PointChange})
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3 text-lg">
+                    <span>Bags: {team1Score.bags}</span>
+                    <span className="text-gray-500">→</span>
+                    <span className="font-medium">{newTeam1Score.bags}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Team 2 */}
+              <div className="card-style p-4">
+                <h4 className="text-xl font-semibold mb-4">{team2Score.name}</h4>
+                <div className="space-y-3">
+                  <div className="flex items-center gap-3 text-lg">
+                    <span>Points: {team2Score.score}</span>
+                    <span className="text-gray-500">→</span>
+                    <span className={`font-medium ${team2PointChange >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                      {newTeam2Score.score} ({team2PointChange >= 0 ? '+' : ''}{team2PointChange})
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3 text-lg">
+                    <span>Bags: {team2Score.bags}</span>
+                    <span className="text-gray-500">→</span>
+                    <span className="font-medium">{newTeam2Score.bags}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Round Details */}
+            <div className="mt-8">
+              <h4 className="text-xl font-semibold mb-4">Round Details</h4>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
+                <div className="card-style p-4">
+                  <div className="space-y-3">
+                    <p className="text-lg">{team1Score.player1Name}: {currentRound.team1Player1.isNello ? 'Nello' : currentRound.team1Player1.bid}</p>
+                    <p className="text-lg">{team1Score.player2Name}: {currentRound.team1Player2.isNello ? 'Nello' : currentRound.team1Player2.bid}</p>
+                    <p className="text-lg font-medium mt-4">Tricks: {currentRound.team1Tricks}</p>
+                    <p className="text-lg font-medium">Yellow Cards: {currentRound.team1YellowCards || 0}</p>
+                  </div>
+                </div>
+                <div className="card-style p-4">
+                  <div className="space-y-3">
+                    <p className="text-lg">{team2Score.player1Name}: {currentRound.team2Player1.isNello ? 'Nello' : currentRound.team2Player1.bid}</p>
+                    <p className="text-lg">{team2Score.player2Name}: {currentRound.team2Player2.isNello ? 'Nello' : currentRound.team2Player2.bid}</p>
+                    <p className="text-lg font-medium mt-4">Tricks: {currentRound.team2Tricks}</p>
+                    <p className="text-lg font-medium">Yellow Cards: {currentRound.team2YellowCards || 0}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Edit Button */}
+            <div className="mt-8 flex justify-end">
+              <button
+                onClick={() => {
+                  setCurrentRound(prev => ({ 
+                    ...prev, 
+                    tricksComplete: false,
+                    biddingComplete: false
+                  }));
+                }}
+                className="button-card bg-blue-500 text-white px-6 py-2 text-lg"
+              >
+                Edit Bids & Tricks
+              </button>
+            </div>
+          </>
+        )}
       </div>
     );
   };
@@ -1075,10 +1352,14 @@ export default function SpadesGame() {
                       <th className="p-2 text-xs sm:text-sm">{team1Score.player2Name}</th>
                       <th className="p-2 text-xs sm:text-sm">{team1Score.name} Tricks</th>
                       <th className="p-2 text-xs sm:text-sm">{team1Score.name} Bags</th>
+                      <th className="p-2 text-xs sm:text-sm">{team1Score.name} YC</th>
+                      <th className="p-2 text-xs sm:text-sm">{team1Score.name} Points</th>
                       <th className="p-2 text-xs sm:text-sm">{team2Score.player1Name}</th>
                       <th className="p-2 text-xs sm:text-sm">{team2Score.player2Name}</th>
                       <th className="p-2 text-xs sm:text-sm">{team2Score.name} Tricks</th>
                       <th className="p-2 text-xs sm:text-sm">{team2Score.name} Bags</th>
+                      <th className="p-2 text-xs sm:text-sm">{team2Score.name} YC</th>
+                      <th className="p-2 text-xs sm:text-sm">{team2Score.name} Points</th>
                       <th className="p-2 text-xs sm:text-sm">Actions</th>
                     </tr>
                   </thead>
@@ -1086,6 +1367,27 @@ export default function SpadesGame() {
                     {history.map((round, index) => {
                       const isEditing = editingHistoryIndex === index;
                       const currentRound = isEditing ? editingRound! : round;
+                      
+                      // Calculate cumulative points up to this round
+                      let team1CumulativePoints = 0;
+                      let team2CumulativePoints = 0;
+                      for (let i = 0; i <= index; i++) {
+                        const roundToCalculate = i === index && isEditing ? editingRound! : history[i];
+                        const team1RoundScore = calculateTeamScore(
+                          [roundToCalculate.team1Player1, roundToCalculate.team1Player2],
+                          roundToCalculate.team1Tricks,
+                          { ...team1Score, score: team1CumulativePoints, bags: 0 },
+                          roundToCalculate.team1YellowCards
+                        );
+                        const team2RoundScore = calculateTeamScore(
+                          [roundToCalculate.team2Player1, roundToCalculate.team2Player2],
+                          roundToCalculate.team2Tricks,
+                          { ...team2Score, score: team2CumulativePoints, bags: 0 },
+                          roundToCalculate.team2YellowCards
+                        );
+                        team1CumulativePoints = team1RoundScore.score;
+                        team2CumulativePoints = team2RoundScore.score;
+                      }
                       
                       return (
                         <tr key={index} className="border-b dark:border-gray-700 whitespace-nowrap hover:bg-gray-50 dark:hover:bg-gray-800">
@@ -1191,6 +1493,20 @@ export default function SpadesGame() {
                           </td>
                           <td className="p-2 text-center text-xs sm:text-sm">
                             {isEditing ? (
+                              <input
+                                type="number"
+                                min="0"
+                                value={currentRound.team1YellowCards || 0}
+                                onChange={(e) => handleHistoryEdit(index, 'team1YellowCards', e.target.value)}
+                                className="w-16 text-center p-1 rounded border"
+                              />
+                            ) : calculateCumulativeYellowCards(index, 1)}
+                          </td>
+                          <td className="p-2 text-center text-xs sm:text-sm font-medium">
+                            {team1CumulativePoints}
+                          </td>
+                          <td className="p-2 text-center text-xs sm:text-sm">
+                            {isEditing ? (
                               <div className="flex flex-col gap-1">
                                 <input
                                   type="text"
@@ -1290,6 +1606,20 @@ export default function SpadesGame() {
                           </td>
                           <td className="p-2 text-center text-xs sm:text-sm">
                             {isEditing ? (
+                              <input
+                                type="number"
+                                min="0"
+                                value={currentRound.team2YellowCards || 0}
+                                onChange={(e) => handleHistoryEdit(index, 'team2YellowCards', e.target.value)}
+                                className="w-16 text-center p-1 rounded border"
+                              />
+                            ) : calculateCumulativeYellowCards(index, 2)}
+                          </td>
+                          <td className="p-2 text-center text-xs sm:text-sm font-medium">
+                            {team2CumulativePoints}
+                          </td>
+                          <td className="p-2 text-center text-xs sm:text-sm">
+                            {isEditing ? (
                               <div className="flex gap-2 justify-center">
                                 <button
                                   onClick={saveHistoryEdit}
@@ -1356,7 +1686,7 @@ export default function SpadesGame() {
             </div>
             <div className="p-4 overflow-y-auto max-h-[calc(90vh-8rem)]">
               <div className="prose dark:prose-invert max-w-none">
-                {GAME_RULES.split('\n\n').map((paragraph, index) => (
+                {getGameRules(isShortGame, isTournamentRules, isFinalsGame).split('\n\n').map((paragraph, index) => (
                   <p key={index} className="mb-4 text-base sm:text-sm">
                     {paragraph.split('\n').map((line, lineIndex) => (
                       <span key={lineIndex}>
