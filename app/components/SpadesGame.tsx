@@ -435,10 +435,10 @@ export default function SpadesGame() {
       return;
     }
 
-    const team1Player1Bid = currentRound.team1Player1.isNello ? "Nello" : currentRound.team1Player1.bid;
-    const team1Player2Bid = currentRound.team1Player2.isNello ? "Nello" : currentRound.team1Player2.bid;
-    const team2Player1Bid = currentRound.team2Player1.isNello ? "Nello" : currentRound.team2Player1.bid;
-    const team2Player2Bid = currentRound.team2Player2.isNello ? "Nello" : currentRound.team2Player2.bid;
+    const team1Player1Bid = currentRound.team1Player1.isNello ? (currentRound.team1Player1.isBlindNello ? "Blind Nello" : "Nello") : currentRound.team1Player1.bid;
+    const team1Player2Bid = currentRound.team1Player2.isNello ? (currentRound.team1Player2.isBlindNello ? "Blind Nello" : "Nello") : currentRound.team1Player2.bid;
+    const team2Player1Bid = currentRound.team2Player1.isNello ? (currentRound.team2Player1.isBlindNello ? "Blind Nello" : "Nello") : currentRound.team2Player1.bid;
+    const team2Player2Bid = currentRound.team2Player2.isNello ? (currentRound.team2Player2.isBlindNello ? "Blind Nello" : "Nello") : currentRound.team2Player2.bid;
 
     const confirmMessage = `Confirm bids:\n\n${team1Score.name}:\n${team1Score.player1Name}: ${team1Player1Bid}\n${team1Score.player2Name}: ${team1Player2Bid}\n\n${team2Score.name}:\n${team2Score.player1Name}: ${team2Player1Bid}\n${team2Score.player2Name}: ${team2Player2Bid}\n\nTotal regular bids: ${totalBids}`;
 
@@ -458,8 +458,13 @@ export default function SpadesGame() {
       return;
     }
 
-    const team1Bids = `${currentRound.team1Player1.isNello ? "Nello" : currentRound.team1Player1.bid} + ${currentRound.team1Player2.isNello ? "Nello" : currentRound.team1Player2.bid}`;
-    const team2Bids = `${currentRound.team2Player1.isNello ? "Nello" : currentRound.team2Player1.bid} + ${currentRound.team2Player2.isNello ? "Nello" : currentRound.team2Player2.bid}`;
+    const team1Player1Bid = currentRound.team1Player1.isNello ? (currentRound.team1Player1.isBlindNello ? "Blind Nello" : "Nello") : currentRound.team1Player1.bid;
+    const team1Player2Bid = currentRound.team1Player2.isNello ? (currentRound.team1Player2.isBlindNello ? "Blind Nello" : "Nello") : currentRound.team1Player2.bid;
+    const team2Player1Bid = currentRound.team2Player1.isNello ? (currentRound.team2Player1.isBlindNello ? "Blind Nello" : "Nello") : currentRound.team2Player1.bid;
+    const team2Player2Bid = currentRound.team2Player2.isNello ? (currentRound.team2Player2.isBlindNello ? "Blind Nello" : "Nello") : currentRound.team2Player2.bid;
+    
+    const team1Bids = `${team1Player1Bid} + ${team1Player2Bid}`;
+    const team2Bids = `${team2Player1Bid} + ${team2Player2Bid}`;
 
     const confirmMessage = `Confirm tricks:\n\n${team1Score.name}:\nBids: ${team1Bids}\nTricks Won: ${currentRound.team1Tricks}\n\n${team2Score.name}:\nBids: ${team2Bids}\nTricks Won: ${currentRound.team2Tricks}`;
 
@@ -1237,7 +1242,7 @@ export default function SpadesGame() {
               <div className="card-style p-4">
                 <h4 className="font-semibold mb-3">{team1Score.name}</h4>
                 <div className="mb-2 text-sm">
-                  Bids: {currentRound.team1Player1.isNello ? "Nello" : currentRound.team1Player1.bid} + {currentRound.team1Player2.isNello ? "Nello" : currentRound.team1Player2.bid}
+                  Bids: {currentRound.team1Player1.isNello ? (currentRound.team1Player1.isBlindNello ? "Blind Nello" : "Nello") : currentRound.team1Player1.bid} + {currentRound.team1Player2.isNello ? (currentRound.team1Player2.isBlindNello ? "Blind Nello" : "Nello") : currentRound.team1Player2.bid}
                 </div>
                 <label className="block">
                   <span className="text-sm">Tricks Won:</span>
@@ -1274,7 +1279,7 @@ export default function SpadesGame() {
               <div className="card-style p-4">
                 <h4 className="font-semibold mb-3">{team2Score.name}</h4>
                 <div className="mb-2 text-sm">
-                  Bids: {currentRound.team2Player1.isNello ? "Nello" : currentRound.team2Player1.bid} + {currentRound.team2Player2.isNello ? "Nello" : currentRound.team2Player2.bid}
+                  Bids: {currentRound.team2Player1.isNello ? (currentRound.team2Player1.isBlindNello ? "Blind Nello" : "Nello") : currentRound.team2Player1.bid} + {currentRound.team2Player2.isNello ? (currentRound.team2Player2.isBlindNello ? "Blind Nello" : "Nello") : currentRound.team2Player2.bid}
                 </div>
                 <label className="block">
                   <span className="text-sm">Tricks Won:</span>
