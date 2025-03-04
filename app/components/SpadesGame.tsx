@@ -13,6 +13,7 @@ interface TeamScore {
 interface Player {
   bid: number;
   isNello: boolean;
+  isBlindNello: boolean;
   nelloSuccess?: boolean;
 }
 
@@ -32,6 +33,7 @@ interface Round {
 const initialPlayerState: Player = {
   bid: 0,
   isNello: false,
+  isBlindNello: false,
 };
 
 const initialRoundState: Round = {
@@ -60,7 +62,7 @@ The Deal:
 The first dealer is chosen by a draw for high card, and thereafter the turn to deal proceeds clockwise. The entire deck is dealt one at a time, face down, beginning on the dealer's left. The players then pick up their cards and arrange them by suits and rank.
 
 The Bidding:
-Each player decides how many tricks they will be able to take and the total number of tricks that need to be won by the team is the sum of what each player bid. The player to the dealer's left starts the bidding and, in turn, each player states how many tricks they expect to win. Any player can call 'nello' which implies that they are bidding 0 wins. The total number of tricks between all 4 players must be less than or equal to 13.
+Each player decides how many tricks (or hands) they will be able to win and the total number of tricks that need to be won by the team is the sum of what each player bid. The player to the dealer's left starts the bidding and, in turn, each player states how many tricks they expect to win. Any player can call 'nello' which implies that they are bidding 0 wins. The total number of tricks between all 4 players must be less than or equal to 13.
 
 The Play:
 The player on the dealer's left makes the opening lead, and players must follow suit, if possible. If a player cannot follow suit, they may play a trump or discard. The trick is won by the player who plays the highest trump or if no trump was played, the player who played the highest card in the suit led. The player who wins the trick leads next. Play continues until none of the players have any cards left. Each hand is worth 13 tricks. Spades cannot be led unless played previously or player to lead has nothing but Spades in their hand.
@@ -69,6 +71,8 @@ How to Keep Score:
 The game is scored as a team. If one person on the team bids 3 tricks and the other bids 4 tricks, the team as a whole needs to win seven tricks to make the contract.
 
 For making the contract (the number of tricks bid), the team scores 10 points for each trick bid. If a player called 'nello' and successfully didn't win a single trick, they gained 100 points, otherwise they lose 100 points. For each overtrick won, the team recives a 'bag' and a deduction of 100 points is made every time a team accumulates 10 bags throughout the game. Thus, the object is always to fulfill the bid exactly.
+
+When a team is behind by 250 points or more, their players have the option to call a 'blind nello'. A blind nello is worth 200 points if successful (no tricks won) but also loses 200 points if failed (any tricks won). This provides a strategic comeback mechanism for teams that are significantly behind.
 
 For example, if the team's bid is Seven and they make seven tricks, the score would be 70. If the bid was Five and the team won eight tricks, the score would be 50 points: 50 points for the bid, and 3 bags for the three overtricks.
 
@@ -103,10 +107,16 @@ export default function SpadesGame() {
   const [history, setHistory] = useState<Round[]>([]);
   const [isEditing, setIsEditing] = useState(false);
   const [isShortGame, setIsShortGame] = useState(false);
+  const [isTournamentRules, setIsTournamentRules] = useState(false);
+  const [isFinalsGame, setIsFinalsGame] = useState(false);
+  const [isDoubleNilAllowed, setIsDoubleNilAllowed] = useState(false);
   const [isHydrated, setIsHydrated] = useState(false);
   const [showRules, setShowRules] = useState(false);
   const [editingHistoryIndex, setEditingHistoryIndex] = useState<number | null>(null);
   const [editingRound, setEditingRound] = useState<Round | null>(null);
+  const [totalBagsTeam1, setTotalBagsTeam1] = useState(0);
+  const [totalBagsTeam2, setTotalBagsTeam2] = useState(0);
+  const [roundNumber, setRoundNumber] = useState(1);
 
   // Handle hydration and localStorage in a single useEffect
   useEffect(() => {
@@ -167,9 +177,9 @@ export default function SpadesGame() {
     players.forEach(player => {
       if (player.isNello) {
         if (player.nelloSuccess) {
-          newScore.score += 100;
+          newScore.score += player.isBlindNello ? 200 : 100;
         } else {
-          newScore.score -= 100;
+          newScore.score -= player.isBlindNello ? 200 : 100;
         }
       } else {
         totalBid += player.bid;
@@ -186,7 +196,19 @@ export default function SpadesGame() {
     newScore.bags += totalBags;
     
     // Check for bag penalty based on game type
-    if (isShortGame) {
+    if (isTournamentRules) {
+      if (isFinalsGame) {
+        while (newScore.bags >= 10) {
+          newScore.score -= 100;
+          newScore.bags -= 10;
+        }
+      } else {
+        while (newScore.bags >= 5) {
+          newScore.score -= 50;
+          newScore.bags -= 5;
+        }
+      }
+    } else if (isShortGame) {
       while (newScore.bags >= 5) {
         newScore.score -= 50;
         newScore.bags -= 5;
@@ -205,7 +227,12 @@ export default function SpadesGame() {
     const playerKey = `team${team}Player${player}` as keyof Round;
     let value: number | boolean;
     
-    if (field === 'isNello') {
+    if (field === 'isNello' || field === 'isBlindNello') {
+      // Prevent blind nellos in tournament mode regular games
+      if (field === 'isBlindNello' && isTournamentRules && !isFinalsGame) {
+        alert("Blind Nellos are not allowed in tournament regular games!");
+        return;
+      }
       value = e.target.checked;
     } else {
       // For bid field: handle empty input and invalid numbers
@@ -222,7 +249,8 @@ export default function SpadesGame() {
       [playerKey]: {
         ...(prev[playerKey] as Player),
         [field]: value,
-        ...(field === 'isNello' && value ? { bid: 0 } : {}),
+        ...(field === 'isNello' && value ? { bid: 0, isBlindNello: false } : {}),
+        ...(field === 'isBlindNello' && value ? { bid: 0, isNello: true } : {}),
       }
     }));
   };
@@ -321,11 +349,17 @@ export default function SpadesGame() {
     const team1PointChange = newTeam1Score.score - team1Score.score;
     const team2PointChange = newTeam2Score.score - team2Score.score;
 
-    const confirmMessage = `Round Summary:\n\n${team1Score.name}:\nPoints: ${team1Score.score} → ${newTeam1Score.score} (${team1PointChange >= 0 ? '+' : ''}${team1PointChange})\nBags: ${team1Score.bags} → ${newTeam1Score.bags}\n\n${team2Score.name}:\nPoints: ${team2Score.score} → ${newTeam2Score.score} (${team2PointChange >= 0 ? '+' : ''}${team2PointChange})\nBags: ${team2Score.bags} → ${newTeam2Score.bags}\n\nConfirm to finalize round?`;
+    // Calculate total bags for tournament mode
+    const newTotalBagsTeam1 = totalBagsTeam1 + currentRound.team1Bags;
+    const newTotalBagsTeam2 = totalBagsTeam2 + currentRound.team2Bags;
+
+    const confirmMessage = `Round Summary:\n\n${team1Score.name}:\nPoints: ${team1Score.score} → ${newTeam1Score.score} (${team1PointChange >= 0 ? '+' : ''}${team1PointChange})\nBags: ${team1Score.bags} → ${newTeam1Score.bags}\nTotal Bags: ${newTotalBagsTeam1}\n\n${team2Score.name}:\nPoints: ${team2Score.score} → ${newTeam2Score.score} (${team2PointChange >= 0 ? '+' : ''}${team2PointChange})\nBags: ${team2Score.bags} → ${newTeam2Score.bags}\nTotal Bags: ${newTotalBagsTeam2}\n\nConfirm to finalize round?`;
 
     if (window.confirm(confirmMessage)) {
       setTeam1Score(newTeam1Score);
       setTeam2Score(newTeam2Score);
+      setTotalBagsTeam1(newTotalBagsTeam1);
+      setTotalBagsTeam2(newTotalBagsTeam2);
 
       // Calculate bags for the round
       const team1RoundBags = Math.max(0, currentRound.team1Tricks - 
@@ -344,14 +378,37 @@ export default function SpadesGame() {
 
       setHistory(prev => [...prev, roundWithBags]);
       setCurrentRound(initialRoundState);
+      setRoundNumber(prev => prev + 1);
 
-      // Check for game end
-      const winningScore = isShortGame ? 250 : 500;
-      if (newTeam1Score.score >= winningScore || newTeam2Score.score >= winningScore) {
-        const winner = newTeam1Score.score > newTeam2Score.score ? team1Score.name : team2Score.name;
-        setTimeout(() => {
-          alert(`Game Over! ${winner} wins!`);
-        }, 100);
+      // Check for game end conditions in tournament mode
+      if (isTournamentRules && !isFinalsGame) {
+        if (roundNumber >= 8 || newTeam1Score.score >= 250 || newTeam2Score.score >= 250) {
+          let winner;
+          if (newTeam1Score.score === newTeam2Score.score) {
+            // If scores are tied, use total bags as tiebreaker
+            winner = newTotalBagsTeam1 < newTotalBagsTeam2 ? team1Score.name : team2Score.name;
+          } else {
+            winner = newTeam1Score.score > newTeam2Score.score ? team1Score.name : team2Score.name;
+          }
+          setTimeout(() => {
+            alert(`Game Over! ${winner} wins!\n\nFinal Scores:\n${team1Score.name}: ${newTeam1Score.score} (${newTotalBagsTeam1} total bags)\n${team2Score.name}: ${newTeam2Score.score} (${newTotalBagsTeam2} total bags)`);
+          }, 100);
+        }
+      } else {
+        // Regular winning condition check
+        const winningScore = isTournamentRules && isFinalsGame ? 500 : (isShortGame ? 250 : 500);
+        if (newTeam1Score.score >= winningScore || newTeam2Score.score >= winningScore) {
+          let winner;
+          if (newTeam1Score.score === newTeam2Score.score) {
+            // If scores are tied, use total bags as tiebreaker
+            winner = newTotalBagsTeam1 < newTotalBagsTeam2 ? team1Score.name : team2Score.name;
+          } else {
+            winner = newTeam1Score.score > newTeam2Score.score ? team1Score.name : team2Score.name;
+          }
+          setTimeout(() => {
+            alert(`Game Over! ${winner} wins!\n\nFinal Scores:\n${team1Score.name}: ${newTeam1Score.score} (${newTotalBagsTeam1} total bags)\n${team2Score.name}: ${newTeam2Score.score} (${newTotalBagsTeam2} total bags)`);
+          }, 100);
+        }
       }
     }
   };
@@ -411,7 +468,10 @@ export default function SpadesGame() {
     const playerKey = `team${team}Player${player}` as keyof Round;
     const playerData = currentRound[playerKey] as Player;
     const teamScore = team === 1 ? team1Score : team2Score;
+    const otherTeamScore = team === 1 ? team2Score : team1Score;
     const playerName = player === 1 ? teamScore.player1Name : teamScore.player2Name;
+    const pointDifference = otherTeamScore.score - teamScore.score;
+    const canUseBlindNello = (!isTournamentRules || isFinalsGame) && pointDifference >= 250;
 
     if (!playerData.isNello) return null;
 
@@ -448,7 +508,10 @@ export default function SpadesGame() {
     const playerKey = `team${team}Player${player}` as keyof Round;
     const playerData = currentRound[playerKey] as Player;
     const teamScore = team === 1 ? team1Score : team2Score;
+    const otherTeamScore = team === 1 ? team2Score : team1Score;
     const playerName = player === 1 ? teamScore.player1Name : teamScore.player2Name;
+    const pointDifference = otherTeamScore.score - teamScore.score;
+    const canUseBlindNello = (!isTournamentRules || isFinalsGame) && pointDifference >= 250;
 
     return (
       <div className="bg-white dark:bg-gray-700 p-4 rounded">
@@ -467,16 +530,30 @@ export default function SpadesGame() {
             className="w-full mt-1 p-2 rounded border dark:bg-gray-600"
           />
         </label>
-        <label className="block">
-          <input
-            type="checkbox"
-            checked={playerData.isNello}
-            onChange={(e) => handleInputChange(e, team, player, 'isNello')}
-            disabled={isEditing}
-            className="mr-2"
-          />
-          Nello
-        </label>
+        <div className="space-y-2">
+          <label className="block">
+            <input
+              type="checkbox"
+              checked={playerData.isNello}
+              onChange={(e) => handleInputChange(e, team, player, 'isNello')}
+              disabled={isEditing || playerData.isBlindNello}
+              className="mr-2"
+            />
+            Nello
+          </label>
+          {canUseBlindNello && (
+            <label className="block">
+              <input
+                type="checkbox"
+                checked={playerData.isBlindNello}
+                onChange={(e) => handleInputChange(e, team, player, 'isBlindNello')}
+                disabled={isEditing}
+                className="mr-2"
+              />
+              Blind Nello
+            </label>
+          )}
+        </div>
       </div>
     );
   };
@@ -669,7 +746,7 @@ export default function SpadesGame() {
       totalBags += roundBags;
       
       // Reset bags when penalty threshold is reached
-      const threshold = isShortGame ? 5 : 10;
+      const threshold = isTournamentRules ? 7 : (isShortGame ? 5 : 10);
       if (totalBags >= threshold) {
         totalBags = totalBags % threshold;
       }
@@ -698,9 +775,9 @@ export default function SpadesGame() {
     const team2PointChange = newTeam2Score.score - team2Score.score;
 
     return (
-      <div className="card-style spade-pattern p-6 my-8">
-        <h3 className="text-2xl font-bold mb-6">Score Preview</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
+      <div className="card-style spade-pattern p-4 my-4">
+        <h3 className="text-xl font-bold mb-4">Score Preview</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {/* Team 1 */}
           <div className="card-style p-4">
             <h4 className="text-xl font-semibold mb-4">{team1Score.name}</h4>
@@ -782,47 +859,85 @@ export default function SpadesGame() {
 
   return (
     <>
-      <div className="w-full max-w-6xl mx-auto p-2 sm:p-4">
-        <div className="card-style spade-pattern p-4 sm:p-6 mb-8">
-          <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
-            <div className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto">
-              <h1 className="text-2xl sm:text-3xl font-bold">♠ Spades Scorecard</h1>
+      <div className="w-full max-w-5xl mx-auto p-2">
+        <div className="card-style spade-pattern p-3 sm:p-4 mb-4">
+          <div className="flex flex-col sm:flex-row justify-between items-center gap-2">
+            <div className="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto">
+              <h1 className="text-xl sm:text-2xl font-bold">♠ Spades Scorecard</h1>
               <div className="flex flex-col sm:flex-row items-center gap-2">
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={isShortGame}
-                    onChange={(e) => setIsShortGame(e.target.checked)}
-                    className="sr-only peer"
-                    disabled={isEditing}
-                  />
-                  <div className="w-14 h-7 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:start-[4px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
-                  <span className="ms-3 text-sm font-medium whitespace-nowrap">
-                    {isShortGame ? "Short Game" : "Regular Game"}
-                  </span>
-                </label>
+                <select
+                  value={isTournamentRules ? "tournament" : (isShortGame ? "short" : "regular")}
+                  onChange={(e) => {
+                    setIsShortGame(e.target.value === "short");
+                    setIsTournamentRules(e.target.value === "tournament");
+                    if (e.target.value !== "tournament") {
+                      setIsFinalsGame(false);
+                    }
+                    // Reset round number when changing game type
+                    setRoundNumber(1);
+                    setTotalBagsTeam1(0);
+                    setTotalBagsTeam2(0);
+                  }}
+                  className="px-3 py-1 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm font-medium shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={isEditing}
+                >
+                  <option value="regular">Regular Game (500 pts)</option>
+                  <option value="short">Short Game (250 pts)</option>
+                  <option value="tournament">Tournament Rules!</option>
+                </select>
                 <span className="text-xs text-gray-500 dark:text-gray-400 text-center sm:text-left">
-                  {isShortGame ? "250 pts, 5 bags = -50" : "500 pts, 10 bags = -100"}
+                  {isTournamentRules ? (
+                    <div className="flex flex-col sm:flex-row items-center gap-2">
+                      <span>{isFinalsGame ? "10 bags = -100 pts" : "5 bags = -50 pts"}</span>
+                      <label className="inline-flex items-center cursor-pointer">
+                        <div className="relative">
+                          <input
+                            type="checkbox"
+                            checked={isFinalsGame}
+                            onChange={(e) => {
+                              setIsFinalsGame(e.target.checked);
+                              // Reset round number when changing game type
+                              setRoundNumber(1);
+                              setTotalBagsTeam1(0);
+                              setTotalBagsTeam2(0);
+                            }}
+                            className="sr-only"
+                          />
+                          <div className={`w-10 h-6 ${isFinalsGame ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-700'} rounded-full transition-colors duration-200 ease-in-out`}>
+                            <div className={`absolute left-0.5 top-0.5 w-5 h-5 bg-white rounded-full shadow transform transition-transform duration-200 ease-in-out ${isFinalsGame ? 'translate-x-4' : 'translate-x-0'}`}></div>
+                          </div>
+                        </div>
+                        <span className="ml-3 text-sm font-medium">{isFinalsGame ? 'Finals Game' : 'Regular Game'}</span>
+                      </label>
+                      {!isFinalsGame && (
+                        <span className="text-xs">
+                          Round {roundNumber}/8
+                        </span>
+                      )}
+                    </div>
+                  ) : (
+                    isShortGame ? "5 bags = -50 pts" : "10 bags = -100 pts"
+                  )}
                 </span>
               </div>
             </div>
-            <div className="flex flex-wrap justify-center sm:justify-end gap-2 sm:gap-4 w-full sm:w-auto">
+            <div className="flex flex-wrap justify-center sm:justify-end gap-2 sm:gap-3 w-full sm:w-auto">
               <button
                 onClick={() => setIsEditing(!isEditing)}
-                className={`button-card ${isEditing ? 'bg-green-500 text-white' : ''}`}
+                className={`button-card px-2 py-1 text-sm ${isEditing ? 'bg-green-500 text-white' : ''}`}
               >
                 {isEditing ? "Save Names" : "Edit Names"}
               </button>
               <button
                 onClick={resetGame}
-                className="button-card bg-yellow-500 text-white"
+                className="button-card bg-yellow-500 text-white px-2 py-1 text-sm"
                 disabled={isEditing}
               >
                 Reset Game
               </button>
               <button
                 onClick={resetEverything}
-                className="button-card bg-red-500 text-white"
+                className="button-card bg-red-500 text-white px-2 py-1 text-sm"
                 disabled={isEditing}
               >
                 Reset All
@@ -831,9 +946,9 @@ export default function SpadesGame() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
           {/* Left Column - Team 1 */}
-          <div className="card-style spade-pattern p-4 sm:p-6">
+          <div className="card-style spade-pattern p-3 sm:p-4">
             {renderTeamHeader(1, team1Score)}
             
             {!currentRound.biddingComplete ? (
@@ -870,7 +985,7 @@ export default function SpadesGame() {
           </div>
 
           {/* Right Column - Team 2 */}
-          <div className="card-style spade-pattern p-4 sm:p-6">
+          <div className="card-style spade-pattern p-3 sm:p-4">
             {renderTeamHeader(2, team2Score)}
             
             {!currentRound.biddingComplete ? (
@@ -948,8 +1063,8 @@ export default function SpadesGame() {
         </button>
 
         {history.length > 0 && (
-          <div className="card-style mt-8 overflow-hidden">
-            <h3 className="text-lg font-semibold p-4 border-b dark:border-gray-700">Round History</h3>
+          <div className="card-style mt-6 overflow-hidden">
+            <h3 className="text-base font-semibold p-3 border-b dark:border-gray-700">Round History</h3>
             <div className="overflow-x-auto">
               <div className="inline-block min-w-full align-middle">
                 <table className="w-full text-sm">
@@ -1211,15 +1326,15 @@ export default function SpadesGame() {
       </div>
 
       {/* Rules Button */}
-      <div className="fixed bottom-4 left-4 z-[9999]">
+      <div className="fixed bottom-3 left-3 z-[9999]">
         <button
           onClick={() => setShowRules(true)}
-          className="button-card bg-gradient-to-br from-gray-900 to-black text-white rounded-full w-14 h-14 sm:w-12 sm:h-12 flex items-center justify-center shadow-lg hover:scale-110 transition-all duration-300 border-2 border-gray-700"
+          className="button-card bg-gradient-to-br from-gray-900 to-black text-white rounded-full w-10 h-10 flex items-center justify-center shadow-lg hover:scale-110 transition-all duration-300 border-2 border-gray-700"
           title="Game Rules"
           aria-label="Show Game Rules"
           disabled={isEditing}
         >
-          <span className="text-3xl sm:text-2xl">♠</span>
+          <span className="text-2xl">♠</span>
         </button>
       </div>
 
