@@ -704,7 +704,7 @@ export default function SpadesGame() {
             value={playerData.bid}
             onChange={(e) => handleInputChange(e, team, player, 'bid')}
             disabled={playerData.isNello || isEditing}
-            className="w-full mt-1 p-2 rounded border dark:bg-gray-600"
+            className={`w-full mt-1 p-2 rounded border dark:bg-gray-600 ${(playerData.isNello || isEditing) ? 'opacity-50 cursor-not-allowed' : ''}`}
           />
         </label>
         <div className="space-y-2">
@@ -714,7 +714,7 @@ export default function SpadesGame() {
               checked={playerData.isNello}
               onChange={(e) => handleInputChange(e, team, player, 'isNello')}
               disabled={isEditing || playerData.isBlindNello}
-              className="mr-2"
+              className={`mr-2 ${(isEditing || playerData.isBlindNello) ? 'opacity-50 cursor-not-allowed' : ''}`}
             />
             Nello
           </label>
@@ -725,7 +725,7 @@ export default function SpadesGame() {
                 checked={playerData.isBlindNello}
                 onChange={(e) => handleInputChange(e, team, player, 'isBlindNello')}
                 disabled={isEditing}
-                className="mr-2"
+                className={`mr-2 ${isEditing ? 'opacity-50 cursor-not-allowed' : ''}`}
               />
               Blind Nello
             </label>
@@ -993,14 +993,18 @@ export default function SpadesGame() {
               <label className="block">
                 <span className="text-sm">Current Round Table Talk / Misplays:</span>
                 <input
-                  type="number"
+                  type="text"
+                  pattern="[0-9]*"
+                  inputMode="numeric"
                   min="0"
-                  value={currentRound.team1YellowCards || 0}
+                  value={currentRound.team1YellowCards === 0 ? '' : currentRound.team1YellowCards}
                   onChange={(e) => setCurrentRound(prev => ({
                     ...prev,
-                    team1YellowCards: Math.max(0, parseInt(e.target.value) || 0)
+                    team1YellowCards: e.target.value === '' ? 0 : Math.max(0, parseInt(e.target.value) || 0)
                   }))}
-                  className="w-full mt-1 p-2 rounded border"
+                  disabled={isEditing}
+                  placeholder="0"
+                  className={`w-full mt-1 p-2 rounded border ${isEditing ? 'opacity-50 cursor-not-allowed' : ''}`}
                 />
               </label>
               <p className="text-sm font-medium">
@@ -1022,14 +1026,18 @@ export default function SpadesGame() {
               <label className="block">
                 <span className="text-sm">Current Round Table Talk / Misplays:</span>
                 <input
-                  type="number"
+                  type="text"
+                  pattern="[0-9]*"
+                  inputMode="numeric"
                   min="0"
-                  value={currentRound.team2YellowCards || 0}
+                  value={currentRound.team2YellowCards === 0 ? '' : currentRound.team2YellowCards}
                   onChange={(e) => setCurrentRound(prev => ({
                     ...prev,
-                    team2YellowCards: Math.max(0, parseInt(e.target.value) || 0)
+                    team2YellowCards: e.target.value === '' ? 0 : Math.max(0, parseInt(e.target.value) || 0)
                   }))}
-                  className="w-full mt-1 p-2 rounded border"
+                  disabled={isEditing}
+                  placeholder="0"
+                  className={`w-full mt-1 p-2 rounded border ${isEditing ? 'opacity-50 cursor-not-allowed' : ''}`}
                 />
               </label>
               <p className="text-sm font-medium">
@@ -1047,7 +1055,8 @@ export default function SpadesGame() {
 
         <button
           onClick={() => setCurrentRound(prev => ({ ...prev, yellowCardsComplete: true }))}
-          className="button-card bg-blue-500 text-white w-full py-2"
+          className={`button-card bg-blue-500 text-white w-full py-2 ${isEditing ? 'opacity-50 cursor-not-allowed' : ''}`}
+          disabled={isEditing}
         >
           Confirm Yellow Cards
         </button>
@@ -1128,7 +1137,8 @@ export default function SpadesGame() {
                     biddingComplete: false
                   }));
                 }}
-                className="button-card bg-blue-500 text-white px-6 py-2 text-lg"
+                className={`button-card bg-blue-500 text-white px-6 py-2 text-lg ${isEditing ? 'opacity-50 cursor-not-allowed' : ''}`}
+                disabled={isEditing}
               >
                 Edit Bids & Tricks
               </button>
@@ -1160,7 +1170,7 @@ export default function SpadesGame() {
                     setTotalBagsTeam1(0);
                     setTotalBagsTeam2(0);
                   }}
-                  className="px-3 py-1 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm font-medium shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className={`px-3 py-1 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm font-medium shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${isEditing ? 'opacity-50 cursor-not-allowed' : ''}`}
                   disabled={isEditing}
                 >
                   <option value="regular">Regular Game (500 pts)</option>
@@ -1183,10 +1193,11 @@ export default function SpadesGame() {
                               setTotalBagsTeam1(0);
                               setTotalBagsTeam2(0);
                             }}
-                            className="sr-only"
+                            disabled={isEditing}
+                            className={`sr-only ${isEditing ? 'opacity-50 cursor-not-allowed' : ''}`}
                           />
-                          <div className={`w-10 h-6 ${isFinalsGame ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-700'} rounded-full transition-colors duration-200 ease-in-out`}>
-                            <div className={`absolute left-0.5 top-0.5 w-5 h-5 bg-white rounded-full shadow transform transition-transform duration-200 ease-in-out ${isFinalsGame ? 'translate-x-4' : 'translate-x-0'}`}></div>
+                          <div className={`w-10 h-6 ${isFinalsGame ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-700'} rounded-full transition-colors duration-200 ease-in-out ${isEditing ? 'opacity-50' : ''}`}>
+                            <div className={`absolute left-0.5 top-0.5 w-5 h-5 bg-white rounded-full shadow transform transition-transform duration-200 ease-in-out ${isFinalsGame ? 'translate-x-4' : 'translate-x-0'} ${isEditing ? 'cursor-not-allowed' : ''}`}></div>
                           </div>
                         </div>
                         <span className="ml-3 text-sm font-medium">{isFinalsGame ? 'Finals Game' : 'Regular Game'}</span>
@@ -1254,7 +1265,8 @@ export default function SpadesGame() {
                     max="13"
                     value={currentRound.team1Tricks}
                     onChange={(e) => handleTricksChange(e, 1)}
-                    className="input-card w-full mt-1"
+                    disabled={isEditing}
+                    className={`input-card w-full mt-1 ${isEditing ? 'opacity-50 cursor-not-allowed' : ''}`}
                   />
                 </label>
               </div>
@@ -1291,7 +1303,8 @@ export default function SpadesGame() {
                     max="13"
                     value={currentRound.team2Tricks}
                     onChange={(e) => handleTricksChange(e, 2)}
-                    className="input-card w-full mt-1"
+                    disabled={isEditing}
+                    className={`input-card w-full mt-1 ${isEditing ? 'opacity-50 cursor-not-allowed' : ''}`}
                   />
                 </label>
               </div>
@@ -1335,7 +1348,7 @@ export default function SpadesGame() {
             isEditing || (currentRound.tricksComplete && !allNelloResultsSubmitted()) ||
             (!currentRound.tricksComplete && currentRound.biddingComplete && 
              currentRound.team1Tricks + currentRound.team2Tricks !== 13)
-              ? 'bg-gray-400 text-white'
+              ? 'bg-gray-400 text-white opacity-50 cursor-not-allowed'
               : 'bg-blue-500 text-white'
           }`}
         >
