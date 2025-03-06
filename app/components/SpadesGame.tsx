@@ -66,7 +66,7 @@ The Deal:
 The first dealer is chosen by a draw for high card, and thereafter the turn to deal proceeds clockwise. The entire deck is dealt one at a time, face down, beginning on the dealer's left. The players then pick up their cards and arrange them by suits and rank.
 
 The Bidding:
-Each player decides how many tricks (or hands) they will be able to win and the total number of tricks that need to be won by the team is the sum of what each player bid. The player to the dealer's left starts the bidding and, in turn, each player states how many tricks they expect to win. Any player can call 'nello' which implies that they are bidding 0 wins. The total number of tricks between all 4 players must be less than or equal to 13.
+Each player decides how many tricks (or hands) they will be able to win and the total number of tricks that need to be won by the team is the sum of what each player bid. The player to the dealer's left starts the bidding and, in turn, each player states how many tricks they expect to win. Any player can call 'nello' which implies that they are bidding 0 wins.
 
 The Play:
 The player on the dealer's left makes the opening lead, and players must follow suit, if possible. If a player cannot follow suit, they may play a trump or discard. The trick is won by the player who plays the highest trump or if no trump was played, the player who played the highest card in the suit led. The player who wins the trick leads next. Play continues until none of the players have any cards left. Each hand is worth 13 tricks. Spades cannot be led unless played previously or player to lead has nothing but Spades in their hand.`;
@@ -390,7 +390,7 @@ export default function SpadesGame() {
       if (inputValue === '' || isNaN(parseInt(inputValue))) {
         value = 0;
       } else {
-        value = Math.max(0, Math.min(13, parseInt(inputValue)));
+        value = Math.max(0, parseInt(inputValue));
       }
     }
     
@@ -430,17 +430,12 @@ export default function SpadesGame() {
       (currentRound.team2Player1.isNello ? 0 : currentRound.team2Player1.bid) +
       (currentRound.team2Player2.isNello ? 0 : currentRound.team2Player2.bid);
 
-    if (totalBids > 13) {
-      alert("Total bids cannot exceed 13!");
-      return;
-    }
-
     const team1Player1Bid = currentRound.team1Player1.isNello ? (currentRound.team1Player1.isBlindNello ? "Blind Nello" : "Nello") : currentRound.team1Player1.bid;
     const team1Player2Bid = currentRound.team1Player2.isNello ? (currentRound.team1Player2.isBlindNello ? "Blind Nello" : "Nello") : currentRound.team1Player2.bid;
     const team2Player1Bid = currentRound.team2Player1.isNello ? (currentRound.team2Player1.isBlindNello ? "Blind Nello" : "Nello") : currentRound.team2Player1.bid;
     const team2Player2Bid = currentRound.team2Player2.isNello ? (currentRound.team2Player2.isBlindNello ? "Blind Nello" : "Nello") : currentRound.team2Player2.bid;
 
-    const confirmMessage = `Confirm bids:\n\n${team1Score.name}:\n${team1Score.player1Name}: ${team1Player1Bid}\n${team1Score.player2Name}: ${team1Player2Bid}\n\n${team2Score.name}:\n${team2Score.player1Name}: ${team2Player1Bid}\n${team2Score.player2Name}: ${team2Player2Bid}\n\nTotal regular bids: ${totalBids}`;
+    const confirmMessage = `Confirm bids:\n\n${team1Score.name}:\n${team1Score.player1Name}: ${team1Player1Bid}\n${team1Score.player2Name}: ${team1Player2Bid}\n\n${team2Score.name}:\n${team2Score.player1Name}: ${team2Player1Bid}\n${team2Score.player2Name}: ${team2Player2Bid}\n\nTotal bids: ${totalBids}`;
 
     if (window.confirm(confirmMessage)) {
       setCurrentRound(prev => ({
@@ -700,7 +695,6 @@ export default function SpadesGame() {
             pattern="[0-9]*"
             inputMode="numeric"
             min="0"
-            max="13"
             value={playerData.bid}
             onChange={(e) => handleInputChange(e, team, player, 'bid')}
             disabled={playerData.isNello || isEditing}
